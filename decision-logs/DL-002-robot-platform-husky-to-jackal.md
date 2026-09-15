@@ -40,6 +40,26 @@ The architecture remains the same:
 - the Jackal computer receives that state;
 - a local safety supervisor has higher priority than the normal velocity command and prevents the robot from proceeding when the conflicting corridor is occupied.
 
+## Husky vs Jackal tradeoffs
+
+This comparison is intentionally written for the full project team, including members who are not robotics specialists. Both platforms are technically capable of supporting the required experiment; the distinction is mainly in operational simplicity, access, and setup overhead.
+
+| Tradeoff | Husky | Jackal | Impact on this experiment |
+|---|---|---|---|
+| **Technical suitability** | Suitable for teleoperation + safety-stop override | Suitable for teleoperation + safety-stop override | **No meaningful difference for the core experiment.** Neither needs autonomous navigation, SLAM, or localization. |
+| **Previous familiarity** | Already used extensively in the Rogers project | New platform for this specific work | Husky has lower familiarity/setup risk initially. |
+| **Previous access** | Was easy to borrow while working on the Rogers project | Available, but taking it to the office requires additional administrative steps | Husky historically had easier access under the previous project context. |
+| **Current operating access** | Previous convenient arrangement no longer applies in the same way | Practical to use during normal working hours | Current plan favors using Jackal during typical working hours rather than moving it to the office. |
+| **After-hours / office use** | Previously easier to arrange | Requires extra red tape and a professor's signature to move it to the office | Jackal introduces an operational constraint if experiments need to happen outside its normal location/hours. |
+| **Physical deployment** | Larger/more operational overhead for the simple corridor experiment | Easier and simpler to deploy for this experiment | **Jackal advantage.** The robot is only an actuator for demonstrating the Radar/RIS safety response. |
+| **Experiment complexity** | More robot than the experiment requires | Better aligned with the intentionally simple robotics role | Jackal helps keep engineering effort focused on Radar/RIS detection, BLE communication, and the safety interlock. |
+| **Data-collection laptop mounting** | No specific convenient mounting arrangement identified in the current plan | Currently has a **wooden rack/platform** suitable for the data-collection laptop | **Jackal advantage.** Less mechanical/setup work before testing. |
+| **Robot-side architecture** | `cmd_vel` + higher-priority safety override | `cmd_vel` + higher-priority safety override | Same architecture. Changing robots does **not** change the experimental concept. |
+| **Main downside of switching** | Already familiar and previously convenient to access | Some additional learning/setup plus stricter access logistics | The Jackal choice is operationally simpler during experiments, but administratively less flexible if we want to relocate it. |
+| **Main reason for selection** | Technically capable, but offers no necessary advantage for this test | Simpler physical platform for the required demonstration | **Jackal selected because it achieves the required function with less unnecessary robotics complexity.** |
+
+The key interpretation is simple: both robots can perform the required task. Jackal is not being selected because it provides better sensing or more advanced autonomy. It is being selected because it is simpler to operate for this experiment and already provides a practical mounting arrangement for the data-collection laptop. The tradeoff is reduced flexibility when moving the platform outside its normal working arrangement.
+
 ## Operational access constraint
 
 Unlike the previous Husky arrangement, taking the Jackal away from its normal working area and into the office requires additional administrative approval, including extra paperwork and a professor's signature.
