@@ -24,6 +24,8 @@ BLE hazard state --------/
 
 The Husky was therefore technically suitable for the experiment.
 
+There was also a practical reason the Husky was initially convenient: it had previously been easy to borrow because it was already being used as part of the Rogers project. That existing project access reduced the administrative overhead of getting the platform for testing.
+
 ## Revised decision — Clearpath Jackal
 
 The experiment will instead use a Clearpath Jackal.
@@ -38,6 +40,26 @@ The architecture remains the same:
 - the Jackal computer receives that state;
 - a local safety supervisor has higher priority than the normal velocity command and prevents the robot from proceeding when the conflicting corridor is occupied.
 
+## Operational access constraint
+
+Unlike the previous Husky arrangement, taking the Jackal away from its normal working area and into the office requires additional administrative approval, including extra paperwork and a professor's signature.
+
+To avoid making the robotics portion of the experiment dependent on that additional borrowing process, the current operating plan is to use the Jackal during normal working hours in its usual accessible environment rather than routinely moving it to the office.
+
+This is an operational constraint rather than a technical limitation of the Jackal. It affects when and where experiments are scheduled, but it does not change the sensing-to-stop architecture.
+
+## Physical setup advantage
+
+The Jackal currently has a wooden rack/platform mounted on it. The data-collection laptop can be placed on this rack during experiments.
+
+This is useful for the planned setup because the laptop can remain physically on the robot while it:
+
+- receives or logs the BLE safety state from the NRF board connected to the Jackal-side computer;
+- records experiment data;
+- supports the local safety-supervisor process and any required robot-side monitoring.
+
+The rack therefore reduces the need to design an additional laptop-mounting solution for the first implementation.
+
 ## Why the decision changed
 
 Moving from Husky to Jackal keeps the implementation aligned with the actual research objective:
@@ -45,7 +67,10 @@ Moving from Husky to Jackal keeps the implementation aligned with the actual res
 - easier physical deployment and operation for the corridor test;
 - less robot-platform overhead for a test that does not require autonomous navigation;
 - simpler experimental handling while preserving the required motion-control interface;
+- an existing wooden rack that can carry the data-collection laptop;
 - keeps engineering effort focused on Radar/RIS detection, BLE communication, and the stop-interlock behavior.
+
+The tradeoff is that Jackal access is administratively less flexible than the Husky access previously available through the Rogers project. Because office borrowing requires additional approval and a professor's signature, testing will be planned primarily during normal working hours.
 
 The goal is not to optimize or benchmark the robot platform. The robot should be the simplest competent platform for demonstrating the sensing-to-action chain.
 
@@ -54,6 +79,10 @@ The goal is not to optimize or benchmark the robot platform. The robot should be
 Any robot-side implementation, launch configuration, topic/interface names, and hardware connections must target the Jackal rather than the Husky.
 
 The safety behavior remains unchanged: a hazard indication must be able to override normal commanded motion locally on the robot computer.
+
+Experiment scheduling should assume Jackal use during normal working hours unless the additional approval process for moving the platform is completed.
+
+The existing wooden rack should be treated as the default mounting location for the data-collection laptop unless a later experiment requires a different mechanical arrangement.
 
 As with the previous platform choice, the software stop is part of the research integration and does not replace the Jackal's physical emergency-stop mechanism or supervised test procedures when people are present.
 
