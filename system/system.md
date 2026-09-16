@@ -1,125 +1,200 @@
 # RIS Robotics — System Design
 
-**Status:** Initial design draft  
-**Date:** 2026-09-15  
-**Document role:** Single full-system architecture figure with supporting explanation and discussion of the design decisions that produced it.
+**Status:** Current integration architecture  
+**Date:** 2026-09-16  
+**Document role:** Maintain the full system picture while making the sensing-team boundary, control-signal route, Jackal-side ROS path, and current implementation responsibilities explicit.
 
 ## System Design
 
-The experiment connects the existing Radar/RIS sensing setup to a Clearpath Jackal so that a sensing result can directly influence robot motion. The robot is not being used as an autonomous-navigation research platform. It is manually driven, while the Radar/RIS system provides an independent STOP authority when the conflicting corridor is occupied.
+The experiment connects the existing Radar/RIS sensing setup to a Clearpath Jackal so that a sensing result can directly stop robot motion. The Jackal remains manually driven; the Radar/RIS system provides an independent STOP authority when the conflicting corridor is occupied.
 
-The complete system is shown below as one figure.
+The robotics contribution is therefore deliberately narrow:
+
+1. obtain an object-detection event from the existing Radar/RIS processing pipeline;
+2. convert that event to a serial trigger;
+3. transport the trigger over BLE using two Nordic NRF boards;
+4. receive the trigger on the Jackal-side laptop;
+5. use the laptop's Ethernet connection and a persistent SSH session to cause the Jackal's onboard ROS system to assert a safety-stop input; and
+6. arbitrate that safety input above normal joystick motion commands.
+
+The complete intended path is shown below.
 
 ```mermaid
 flowchart LR
-
-    RADAR["RADAR"]
-    RIS["RIS"]
-
-    subgraph CENTRAL["CENTRAL SENSING CORE"]
+    subgraph SENSING["RADAR / RIS SENSING SIDE"]
         direction LR
-        CL["Central Laptop<br/>Collects Radar + RIS information<br/>Generates safety decision"]
-        UTX(["USB"])
-        TX["NRF BLE Board<br/>Transmitter"]
-        CL --- UTX --- TX
+        RIS["RIS-assisted sensing path"]
+        RADAR["Infineon Radar"]
+        RUSB(["USB"])
+        PC["Radar/RIS Processing Computer<br/>Drives radar<br/>Runs real-time processing pipeline"]
+        DETECT{{"Object-detection event"}}
+        STX(["USB Serial"])
+        TX["NRF BLE Board<br/>TX"]
+
+        RADAR --- RUSB --- PC
+        RIS -.-> PC
+        PC ==> DETECT
+        DETECT --> STX --> TX
     end
 
     BLE(["BLE Broadcast"])
 
-    subgraph MOBILE["JACKAL-SIDE COMPUTE CORE"]
+    subgraph MOBILE["JACKAL-SIDE BRIDGE"]
         direction LR
-        RX["NRF BLE Board<br/>Receiver"]
-        URX(["USB"])
-        JL["Laptop on Jackal rack<br/>Receives safety state<br/>Runs robot-side control logic"]
-        RX --- URX --- JL
+        RX["NRF BLE Board<br/>RX"]
+        SRX(["USB Serial"])
+        LAPTOP["Laptop on Jackal rack<br/>Serial-to-SSH bridge"]
+
+        RX --- SRX --- LAPTOP
     end
 
-    ETH(["Ethernet"])
-    JACKAL["Clearpath Jackal Robot"]
+    SSH(["Ethernet<br/>Persistent SSH"])
 
-    RUSB(["USB"])
-    IUSB(["USB"])
+    subgraph JACKALCORE["JACKAL ONBOARD COMPUTER / ROS"]
+        direction LR
+        ROSSTOP["ROS safety / stop input"]
+        JOY["Normal joystick velocity input"]
+        ARB["ROS command arbiter / mux"]
+        BASE["Jackal base controller"]
 
-    JOY{{"JOYSTICK CONTROL"}}
-    STOP{{"STOP BROADCAST CONTROL"}}
-
-    RADAR --- RUSB --- CL
-    RIS --- IUSB --- CL
-
-    CL ==> STOP
-    STOP ==> TX
+        ROSSTOP ==>|"higher authority"| ARB
+        JOY --> ARB
+        ARB --> BASE
+    end
 
     TX -.-> BLE -.-> RX
-
-    RX ==> JL
-    JOY ==> JL
-
-    JL --- ETH --- JACKAL
-    JL ==> JACKAL
+    LAPTOP --> SSH --> ROSSTOP
 ```
 
-The figure uses a fixed convention so that the architecture is readable even for project members who are not robotics specialists.
+### Figure convention
 
 | Figure element | Meaning |
 |---|---|
-| Large rectangular block | Physical device or major compute element |
+| Large rectangular block | Physical device or major compute/software element |
 | Small capsule between blocks | Connection technology or interface stack |
-| Solid link | Wired physical/data connectivity |
-| Dashed directional link | Wireless BLE broadcast |
-| Enclosure | Components that belong to the same local operating assembly/core |
-| Hexagonal block | Control input or control signal |
-| Thick directional arrow | Control influence or authority rather than ordinary connectivity |
+| Solid link | Wired/local data connectivity |
+| Dashed directional link | Wireless or logical sensing contribution |
+| Enclosure | Components belonging to the same local operating side/core |
+| Hexagonal block | Trigger/control event |
+| Thick directional arrow | Higher control authority rather than ordinary data flow |
 
-The main convention is that whenever two device blocks are connected, the technology used to cross that boundary is written explicitly between them. The architecture therefore shows the actual sequence of interfaces rather than pretending the whole system uses one stack. In this design the path legitimately changes from USB to BLE to USB to Ethernet.
+The connection technology is shown whenever the system crosses a device boundary. The end-to-end route therefore changes intentionally from **USB/serial → BLE → USB/serial → Ethernet/SSH → ROS**.
 
-Radar and RIS are peer sensing inputs and are both connected by **USB** to the **Central Laptop**. The Central Laptop is the first common compute point in the robotics integration. It gathers the relevant sensing information and derives the safety decision used by the robot experiment. The robot does not need raw Radar or RIS data; it only needs the resulting safety state.
+## Sensing-side assumption that must be confirmed
 
-The Central Laptop connects by **USB** to the sensing-side NRF board. That NRF board is shown inside the **Central Sensing Core** because it remains a locally attached peripheral. The system does not leave that local core until the BLE transmission occurs.
+The robotics integration currently depends on one important assumption about the existing sensing implementation.
 
-The sensing-side NRF board broadcasts the safety information using **BLE**. A second NRF board receives that broadcast on the robot side. BLE is therefore the remote bridge between the sensing-side core and the Jackal-side compute core.
+The **Infineon radar is connected by USB to the sensing team's computer**, that computer drives the radar, and the Radar/RIS processing is performed there in real time. The exact internal RIS implementation is owned by the sensing team and does not need to be duplicated in the robotics code. What matters to this integration is that the resulting object-detection information is available somewhere in the processing pipeline running on that computer.
 
-The receiving NRF board is connected by **USB** to the laptop carried on the Jackal. The Jackal already has a wooden rack/platform that can carry this laptop during testing. The laptop receives the safety state, participates in robot-side control, and can also support experiment data collection and logging.
+The diagram therefore intentionally does **not** assert a second physical USB cable from the RIS to the computer. It only shows the RIS-assisted sensing contribution reaching the common processing computer while the known radar-to-computer USB link is explicit.
 
-The Jackal-side laptop connects to the **Clearpath Jackal over Ethernet**. The NRF board does not directly control the Jackal's drive hardware; the laptop remains the compute bridge between the BLE safety information and the robot's normal control interface.
+### Specific ask from the sensing team
 
-There are two logical control influences on the robot. The **joystick** provides normal operator motion intent. The **STOP broadcast control** originates from the Central Laptop after the Radar/RIS sensing indicates that the conflicting corridor is unsafe. These two control influences are deliberately drawn differently from ordinary device connectivity because they express control authority rather than merely a physical/data link.
+The required interface from the sensing team is intentionally small:
 
-The core rule is:
+1. identify an accessible point in the current processing pipeline where an object-detection event is available; and
+2. allow a small integration step at that point that sends a serial trigger to the NRF transmitter whenever the required object-detection condition occurs.
+
+Conceptually:
+
+```text
+Existing Radar/RIS pipeline
+          |
+          v
+   Object detected
+          |
+          v
+     Serial trigger
+          |
+          v
+       NRF TX
+```
+
+The robotics integration does not require raw Radar/RIS frames to leave their computer and does not require the sensing team to implement the BLE or Jackal-side ROS control path.
+
+## Implementation on the robotics side
+
+### 1. BLE trigger transport
+
+Two NRF boards are already available. No additional hardware is currently required for the BLE link.
+
+The sensing-side board acts as the BLE transmitter and receives the detection trigger from the processing computer over USB serial. The Jackal-side board acts as the BLE receiver and exposes the received STOP state over USB serial to the laptop mounted on the Jackal.
+
+The BLE TX-to-RX implementation is expected to require only a few hours of work and is targeted to be working before the **2026-09-17 session**. Once that link is operational, the remaining dependency for the first end-to-end deliverable is connecting the sensing pipeline's detection event to the serial input of the NRF transmitter.
+
+### 2. Jackal-side serial-to-SSH bridge
+
+The receiving NRF board connects by USB serial to the laptop on the Jackal rack. A small process on this laptop listens continuously for the received control state.
+
+The laptop does **not** need a local ROS installation for the current architecture. Instead, it maintains a persistent SSH session over Ethernet to the Jackal's onboard computer, where ROS is already running. When the laptop receives a STOP event from serial, the bridge sends the corresponding command through the already-open SSH session so that the ROS-side action executes on the Jackal computer.
+
+Conceptually:
+
+```text
+NRF RX
+  |
+  | USB serial
+  v
+Jackal-side laptop
+  |
+  | persistent SSH over Ethernet
+  v
+Jackal onboard computer
+  |
+  v
+ROS safety / stop input
+```
+
+Opening a new SSH connection for every detection event is not the intended design. The session should remain open during the experiment so the serial event can immediately affect the remote ROS control path.
+
+### 3. ROS stop arbitration
+
+The ROS side is the more involved part because the STOP requirement is not implemented by giving one ROS topic an intrinsic "higher priority." ROS topics themselves do not provide this priority relationship.
+
+Instead, the Jackal needs a command-arbitration layer: normal joystick velocity commands and the Radar/RIS-derived STOP input both enter a **mux/supervisor/arbiter**, and that component enforces the rule that STOP wins whenever it is asserted.
+
+```text
+Joystick velocity ---------\
+                           > ROS arbiter / mux --> Jackal base controller
+Radar/RIS STOP ------------/
+          higher authority
+```
+
+A direct ROS publish triggered through SSH is suitable for bringing up and testing the path. The control semantics must still be enforced locally on the Jackal through the ROS-side arbitration logic rather than relying on message arrival order.
+
+This ROS work can be developed independently using the Jackal without requiring the sensing team to be present. Once it is ready, the project can move to final end-to-end integration.
+
+## Responsibility boundary and current status
+
+| Block | Owner | Current state | Dependency / resource |
+|---|---|---|---|
+| Radar/RIS real-time processing | Sensing team | Existing system | Existing sensing setup |
+| Expose object-detection event | Sensing team + integration point | **Needs confirmation** | Accessible event in their pipeline |
+| Detection event → serial trigger | Integration boundary | **Pending pipeline access** | Serial output from sensing computer |
+| NRF TX → BLE → NRF RX | Robotics side | **Planned before 2026-09-17 session** | Two NRF boards already available |
+| NRF RX → laptop serial listener | Robotics side | Pending | Existing USB connection |
+| Laptop → persistent SSH → Jackal | Robotics side | Pending | Ethernet link; no ROS required on laptop |
+| ROS safety input + joystick arbitration | Robotics side | Pending; more involved | Jackal access; ROS-side control work |
+| Full sensing-to-stop integration | Joint integration | Follows the blocks above | Sensing trigger + completed robotics path |
+
+The critical external dependency is therefore narrow: **where the object-detection event can be extracted from the existing sensing pipeline**. The BLE and Jackal-side work can proceed independently in parallel.
+
+## Control and safety semantics
+
+The control rule remains:
 
 > **STOP authority has higher priority than joystick motion authority.**
 
-If the operator continues requesting motion while the Radar/RIS-derived state indicates that the conflicting corridor is unsafe, the robot-side control layer must prevent the Jackal from proceeding. When the safety state allows motion again, normal joystick control can continue.
+If the operator continues requesting motion while the Radar/RIS-derived state indicates that the conflicting corridor is unsafe, the ROS-side arbitration layer must prevent the Jackal from proceeding. When the safety state permits motion again, normal joystick control can resume according to the final experiment logic.
 
-Responsibility is intentionally separated across the system. The Radar/RIS side observes the environment and originates the safety decision. BLE carries the compact safety state. The Jackal-side laptop receives that state, combines it with normal joystick intent, and interfaces to the robot. The Jackal itself executes the resulting motion through its existing low-level control system. The design does not require the Jackal to perform SLAM, localization, autonomous route planning, or hidden-corridor perception.
+The software STOP mechanism is part of the research integration and does not replace the Jackal's physical emergency-stop hardware or normal supervised procedures. Communication-loss behavior also needs to be explicit in the final implementation: loss of BLE, serial, or SSH must not silently be interpreted as proof that the corridor is clear.
 
-The software STOP mechanism is part of the research integration and does not replace the Jackal's physical emergency-stop hardware or normal supervised procedures when people are involved in testing.
+## Bigger picture
 
-## Discussion of Decisions
+The architecture keeps the research contribution focused. The sensing team remains responsible for producing the object-detection result. The robotics integration converts that result into a compact control trigger, moves it through a dedicated BLE link, and enforces the result locally at the Jackal's ROS control boundary.
 
-The architecture is intentionally simple because the research focus is the Radar/RIS sensing-to-action demonstration rather than autonomous robotics or networking complexity. Two major design choices changed during planning: the communication path moved from Wi-Fi to BLE, and the robot platform moved from Husky to Jackal.
+The robot is not being turned into an autonomous-navigation platform. No SLAM, autonomous route planning, or hidden-corridor perception is required on the Jackal. The intended demonstration is simply:
 
-**Wi-Fi to BLE.** The initial concept placed the operator computer, robot computer, and Radar/RIS processing computer on a common Wi-Fi network. Wi-Fi could have carried operator velocity commands, camera/video traffic, Radar/RIS safety messages, telemetry, logs, and supporting ROS/network traffic. That approach was technically workable, but it mixed the tiny safety signal with the rest of the robot's networking and made the integration unnecessarily broad.
+**Radar/RIS detects the relevant condition → a compact STOP trigger crosses the communication path → the Jackal's local control layer overrides manual motion.**
 
-The revised design uses **Bluetooth Low Energy with Nordic NRF boards** for the Radar/RIS safety path. The information being sent is only a compact control/safety state, so BLE provides a much narrower and more explicit interface. It decouples the safety trigger from any Wi-Fi used for teleoperation or camera streaming, avoids requiring raw Radar/RIS data to cross to the robot, avoids unnecessary IP/ROS networking complexity for a small state, and allows the sensing-to-robot link to be tested independently. Wi-Fi may still exist for unrelated robot functions, but it is no longer the transport for the Radar/RIS safety decision.
-
-**Husky to Jackal.** The first robot choice was a Clearpath Husky. Husky was technically suitable and familiar because it had already been used extensively during the Rogers project. At that time it had also been easy to borrow because it was already part of the active project context.
-
-The experiment instead moved to a **Clearpath Jackal**. This was not because Jackal provides better sensing or smarter autonomy. Both robots can support the same manually driven robot plus higher-priority safety override. Jackal is preferred because it is a simpler competent actuator for this corridor experiment and reduces unnecessary robotics overhead.
-
-| Tradeoff | Husky | Jackal | Impact on this experiment |
-|---|---|---|---|
-| Technical suitability | Suitable for teleoperation + safety override | Suitable for teleoperation + safety override | No meaningful difference in the required core function |
-| Familiarity | Already used extensively in the Rogers project | Newer platform for this work | Husky has a familiarity advantage |
-| Previous access | Easy to borrow under the Rogers project context | Different access process | Husky historically had easier access |
-| Current operating plan | Previous convenient arrangement no longer applies in the same way | Use during normal working hours | Jackal is practical without relocating it |
-| Office / after-hours use | Previously easier to arrange | Moving it to the office requires extra administrative steps and a professor's signature | Jackal has less relocation flexibility |
-| Physical deployment | More platform/overhead than this simple corridor test requires | Easier and simpler for this experiment | Jackal advantage |
-| Experiment complexity | More robotics capability than required | Better aligned with the intentionally simple robot role | Jackal keeps the project focused on Radar/RIS, BLE, and the safety interlock |
-| Laptop mounting | No specific convenient mount identified in this plan | Existing wooden rack/platform can carry the laptop | Jackal advantage |
-| Robot-side architecture | Joystick/cmd_vel + higher-priority safety override | Same | Changing robots does not change the experimental concept |
-
-A practical consequence of choosing Jackal is access. Taking it from its normal operating area into the office requires additional administrative approval, including extra paperwork and a professor's signature. The current plan is therefore to use the Jackal during **typical working hours** in its normally accessible environment rather than make the experiment dependent on moving it to the office.
-
-The Jackal's existing wooden rack is also useful because the data-collection / robot-side laptop can sit directly on the robot while receiving the BLE safety state, participating in the control path, and collecting experimental data. This avoids introducing another mechanical mounting task before the first tests.
-
-Taken together, the decisions keep the system deliberately constrained: **Radar/RIS performs the sensing, BLE carries the small safety decision, the Jackal-side laptop enforces the control relationship, and the Jackal acts as the physical demonstration platform.**
+Detailed implementation and handoff notes are maintained in [`control-signal-path.md`](control-signal-path.md).

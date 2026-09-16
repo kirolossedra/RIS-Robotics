@@ -1,73 +1,105 @@
 # DL-001 — Radar/RIS-to-Robot Communication: Wi-Fi to BLE
 
 **Status:** Accepted  
-**Date:** 2026-09-15  
+**Date:** 2026-09-15; implementation detail updated 2026-09-16  
 **Scope:** Communication path carrying the Radar/RIS obstacle state to the mobile robot
 
 ## Context
 
-The experiment requires the Radar/RIS sensing system to notify the mobile robot when a moving person or obstacle is detected in the conflicting corridor. The robot is teleoperated; the sensing system is not responsible for navigation. Its role is to provide a compact safety state that can be consumed by a robot-side supervisor with higher priority than normal velocity commands.
+The experiment requires the Radar/RIS sensing system to notify the mobile robot when a moving person or obstacle is detected in the conflicting corridor. The robot is teleoperated; the sensing system is not responsible for navigation. Its role is to provide a compact safety state that can be consumed by a robot-side supervisor with higher control authority than normal velocity commands.
 
-The information crossing this interface is intentionally small. The robot does not need raw radar or RIS data. It only needs the derived state required for the experiment, such as `HAZARD` / `CLEAR` or an equivalent compact message.
+The information crossing this interface is intentionally small. The robot does not need raw radar or RIS data. It only needs the derived state required for the experiment, such as `STOP` / `CLEAR` or an equivalent compact message.
+
+The current integration assumption is that the Infineon radar is connected by USB to the sensing computer, that this computer drives the radar, and that the relevant Radar/RIS detection information is processed in a real-time pipeline on that computer. The exact point at which the object-detection event is exposed still needs confirmation from the sensing team.
 
 ## Initial decision — Wi-Fi
 
 The first architecture considered a shared Wi-Fi LAN containing the operator computer, robot computer, and Radar/RIS processing computer.
 
-Under that design, Wi-Fi would carry several traffic classes:
+Under that design, Wi-Fi could have carried several traffic classes:
 
 - operator velocity commands to the robot;
 - camera/video data from the robot to the remote operator;
 - Radar/RIS safety state to the robot;
-- robot telemetry and experiment logs;
+- robot telemetry and experiment logs; and
 - supporting ROS/network-discovery traffic where applicable.
 
-This was attractive because it reused the robot's normal IP networking and would make the Radar/RIS safety state easy to expose as a network or ROS message.
+This was technically workable, but it coupled the small safety signal to a broader network and made the robotics integration larger than necessary.
 
 ## Revised decision — BLE using Nordic NRF boards
 
-The communication architecture was simplified. The Radar/RIS safety signal will now use Bluetooth Low Energy rather than Wi-Fi.
+The Radar/RIS safety signal will use Bluetooth Low Energy rather than Wi-Fi.
 
-An NRF board on the Radar/RIS side will broadcast the derived obstacle/safety state using BLE. A second NRF board associated with the robot computer will receive that BLE message and expose the state to the robot-side software.
+An NRF board on the Radar/RIS side receives the derived detection trigger over USB serial and broadcasts the compact state using BLE. A second NRF board on the Jackal side receives the BLE message and exposes the state over USB serial to the laptop mounted on the robot.
 
 Conceptually:
 
 ```text
-Radar / RIS detection
-        |
-        v
-Derived safety state
-        |
-        v
-NRF board -- BLE broadcast --> NRF board -- local interface --> Robot computer
-                                                        |
-                                                        v
-                                                Safety supervisor
+Radar / RIS processing pipeline
+            |
+            v
+    Object-detection event
+            |
+            v
+       USB serial
+            |
+            v
+         NRF TX
+            |
+           BLE
+            |
+            v
+         NRF RX
+            |
+            v
+       USB serial
+            |
+            v
+   Jackal-side laptop
 ```
 
-The robot-side supervisor will then decide whether normal motion commands are allowed to reach the robot controller.
+Two NRF boards are already available, so no additional BLE hardware is currently expected. The TX-to-RX BLE portion is targeted to be operational before the 2026-09-17 team session.
 
 ## Why the decision changed
 
-BLE is a better fit for this specific interface because the information being transferred is only a small control/safety state rather than a high-bandwidth data stream.
+BLE is a better fit for this specific interface because the information being transferred is only a small control/safety state rather than a high-bandwidth stream.
 
 Moving this signal to BLE:
 
-- reduces the communication implementation to a small, explicit interface;
-- avoids coupling the Radar/RIS safety trigger to the Wi-Fi network used for teleoperation or camera streaming;
-- avoids unnecessary IP/ROS networking complexity for a binary or otherwise compact state;
-- makes the Radar/RIS-to-robot path independently testable;
-- reuses NRF hardware already suitable for BLE development;
+- makes the sensing-to-robot interface explicit and independently testable;
+- decouples the safety trigger from Wi-Fi used for unrelated teleoperation or camera traffic;
+- avoids requiring raw Radar/RIS data to cross to the robot;
+- avoids unnecessary IP/ROS networking complexity on the sensing-to-robot wireless hop;
+- reuses the available NRF hardware; and
 - keeps the robotics integration subordinate to the actual sensing contribution rather than turning networking into a second research problem.
 
-## Consequences
+## Sensing-team boundary
 
-The camera stream and remote teleoperation may still use the robot's normal networking as needed, but they are no longer part of the Radar/RIS safety communication path.
+The only external integration required for the BLE path is a clean detection event from the existing sensing pipeline.
 
-The BLE receiver must provide a clean local interface to the robot computer so the safety supervisor can consume the received state and override motion when necessary.
+The sensing team needs to confirm:
 
-The implementation must also define what happens when BLE messages are stale or missing. Silence must not automatically be treated as proof that the corridor is clear. This is especially important because the experiment involves a moving robot and people. BLE is the experiment's communication mechanism, not a substitute for the robot's physical emergency-stop provisions or normal human safety procedures.
+1. where the required object-detection event is available in the current pipeline; and
+2. whether a small serial-output step can be inserted there so the event can be delivered to the NRF transmitter.
+
+The sensing team does not need to implement the BLE receiver or Jackal-side ROS control path.
+
+## Robot-side consequence
+
+BLE terminates at the NRF receiver; it does not directly control the Jackal.
+
+The receiver feeds the Jackal-side laptop over USB serial. Under the current robot-side architecture, that laptop can maintain a persistent SSH session over Ethernet to the Jackal onboard computer. A received STOP event can therefore cause a ROS-side action to execute on the Jackal without requiring ROS to be installed on the laptop itself.
+
+The priority rule is not implemented by making a ROS topic intrinsically "higher priority." A ROS-side arbiter/mux/supervisor must enforce STOP authority over normal joystick velocity commands.
+
+The detailed robot-side decision is recorded separately in **DL-003**.
+
+## Reliability consequence
+
+The implementation must define what happens when BLE messages are stale or missing. The same applies to serial or SSH failure downstream. Silence or loss of connectivity must not automatically be treated as proof that the corridor is clear.
+
+This software path is part of the research experiment and does not replace the robot's physical emergency-stop provisions or normal supervised procedures.
 
 ## Resulting design principle
 
-The sensing computer decides **whether the conflicting corridor is occupied**. BLE communicates that result. The robot computer retains the local authority to enforce the stop.
+The sensing computer decides **whether the relevant conflicting condition has been detected**. BLE carries only that compact result. The Jackal's ROS control layer retains local authority to enforce the resulting stop.
