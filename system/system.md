@@ -1,275 +1,703 @@
 # RIS Robotics — System Design
 
-**Status:** Draft  
+**Status:** Initial design draft  
 **Date:** 2026-09-15  
-**Scope:** End-to-end system architecture for the Radar/RIS-to-robot safety experiment
+**Document role:** Figure-first description of the complete RIS/Radar-to-Jackal system
 
-## 1. Purpose
+---
 
-This document is the parent system-design document for the RIS Robotics experiment. It describes the complete sensing-to-action chain at a high level before the design is decomposed into subsystem-specific files.
+## 1. How to read this document
 
-The primary research contribution is the Radar/RIS sensing capability. The robotics portion exists to demonstrate that a detected moving person or obstacle in the conflicting corridor can be communicated to the robot and used to prevent the robot from entering an unsafe path.
+This system document is intentionally **figure-first**. The diagrams are the primary description of the architecture. Text exists mainly to define the figure convention and remove ambiguity.
 
-The robot is intentionally not responsible for autonomous localization, mapping, SLAM, or path planning. It is teleoperated, while a local safety mechanism on the robot has authority to override normal motion commands.
+The system is drawn from the **sensing side toward the robot side**.
 
-## 2. Physical Scenario
-
-The experiment contains a corner with two corridors/routes.
-
-- The Radar and RIS are located at the corner and are connected as part of the sensing setup.
-- One corridor is covered directly by the Radar side of the sensing system.
-- The other corridor is covered through the RIS side of the sensing system.
-- A Jackal mobile robot travels along one route toward the corner.
-- A person or other moving obstacle may be present in the conflicting route.
-- If the sensing system detects a relevant moving obstacle in the conflicting corridor, the robot must not proceed into that corridor.
-
-## 3. System-Level Behavior
-
-The intended behavior is:
+The main story is:
 
 ```text
-No conflicting obstacle detected
-        |
-        v
-Normal teleoperation command allowed
-        |
-        v
-Jackal moves normally
-
-
-Conflicting obstacle detected by Radar or RIS
-        |
-        v
-Hazard state generated
-        |
-        v
-BLE safety message broadcast by NRF board
-        |
-        v
-Jackal-side NRF board receives message
-        |
-        v
-Robot-side safety supervisor overrides normal motion
-        |
-        v
-Jackal stops / is prevented from proceeding
+Radar / RIS
+    -> Central Laptop
+    -> NRF BLE transmitter attached to the Central Laptop
+    -> BLE
+    -> NRF BLE receiver attached to the laptop above the Jackal
+    -> Jackal Laptop
+    -> Ethernet
+    -> Jackal Robot
 ```
 
-The safety decision has higher priority than the operator's normal velocity command.
-
-## 4. High-Level Architecture
+The same physical architecture carries a logical control story:
 
 ```text
-                    CORNER SENSING SIDE
-
-              +-------------------------+
-              |     Radar / RIS System  |
-              |                         |
-              | Detect moving obstacle  |
-              | in conflicting corridor |
-              +------------+------------+
-                           |
-                    hazard / clear state
-                           |
-                           v
-                 +------------------+
-                 | NRF Transmitter  |
-                 | BLE broadcast    |
-                 +--------+---------+
-                          |
-                          | BLE
-                          v
-
-                    ROBOT SIDE
-
-                 +------------------+
-                 | NRF Receiver     |
-                 +--------+---------+
-                          |
-                          v
-                 +------------------+
-                 | Jackal Computer  |
-                 | Safety Supervisor|
-                 +--------+---------+
-                          ^
-                          |
-              normal teleoperation / cmd_vel
-                          |
-                    +-----+-----+
-                    | Operator  |
-                    +-----------+
-                          |
-                          v
-              Safety supervisor chooses
-              whether motion is allowed
-                          |
-                          v
-                       Jackal
+Joystick control
+        +
+STOP broadcast generated from Radar/RIS information
+        |
+        v
+Laptop above Jackal
+        |
+        v
+Jackal Robot
 ```
 
-## 5. Major System Components
+---
 
-### 5.1 Radar/RIS sensing system
+# 2. Figure convention
 
-Existing sensing subsystem responsible for detecting moving people or obstacles in the two corridor directions.
+Every system figure in this repository should follow the same visual language unless a later subsystem document explicitly introduces an additional convention.
 
-For the robotics integration, the required output is a simple safety state indicating whether the conflicting corridor should be treated as occupied/unsafe or clear.
+## 2.1 Large block = physical device or major compute element
 
-The robot does not consume raw Radar or RIS sensing data.
+A large rectangular block represents a device or major compute element.
 
-### 5.2 Corner-side NRF board
+```mermaid
+flowchart LR
+    A["Physical / Compute Device"]
+```
 
-Receives or is provided with the safety state from the Radar/RIS processing system and broadcasts the corresponding safety information over BLE.
+Examples in this system are:
 
-The exact electrical/software interface between the sensing computer and the NRF board is still to be defined.
+- Radar
+- RIS
+- Central Laptop
+- NRF BLE board
+- Laptop above the Jackal
+- Jackal Robot
 
-### 5.3 BLE communication link
+---
 
-BLE is the dedicated communication path for the safety state between the corner sensing setup and the robot.
+## 2.2 Small capsule between blocks = connection technology / interface stack
 
-This replaces the earlier Wi-Fi communication concept. Wi-Fi is not required for transferring the Radar/RIS safety decision to the robot.
+When two large blocks are connected, the **technology used to connect them is shown as a smaller capsule between the blocks**.
 
-The exact BLE message format, advertising behavior, update rate, timeout behavior, and failure handling are still to be defined in the communication subsystem design.
+The connection technology belongs visually to the connection, not to either large device block.
 
-### 5.4 Jackal-side NRF board
+```mermaid
+flowchart LR
+    A["Device A"] --- I(["USB"]) --- B["Device B"]
+```
 
-Receives the BLE safety broadcast and provides the decoded safety state to the Jackal computer.
-
-The physical connection and software interface between the NRF receiver and the Jackal computer are still to be defined.
-
-### 5.5 Jackal computer
-
-Runs the robot-side safety logic.
-
-Its core responsibility is to combine:
-
-- the normal teleoperation velocity command; and
-- the received Radar/RIS safety state.
-
-The safety state has higher authority than normal teleoperation.
-
-### 5.6 Safety supervisor
-
-The safety supervisor sits between the source of normal robot motion commands and the final command consumed by the Jackal controller.
-
-Conceptually:
+This reads as:
 
 ```text
-Teleoperation cmd_vel -------\
-                              > Safety Supervisor --> Final robot command
-BLE-derived hazard state ----/
+Device A <---- USB ----> Device B
 ```
 
-At the simplest level:
+The same convention applies to Ethernet, BLE, serial links, or any later interface.
+
+### Different stacks are allowed
+
+If the system crosses several technologies, each technology is shown independently rather than hiding the transition.
+
+```mermaid
+flowchart LR
+    A["Device A"] --- U(["USB"]) --- B["Bridge / Compute"]
+    B -.-> W(["BLE"]) -.-> C["Remote Device"]
+    C --- E(["Ethernet"]) --- D["Final Device"]
+```
+
+Therefore a reader can follow the system simply by reading:
 
 ```text
-IF conflicting corridor is unsafe:
-    block forward motion / command stop
-ELSE:
-    allow normal teleoperation command
+DEVICE -> TECHNOLOGY -> DEVICE -> TECHNOLOGY -> DEVICE
 ```
 
-The exact ROS topic/interface design and stop semantics will be defined in the robot-control subsystem design.
+The architecture does **not** assume that the whole system uses one networking stack.
 
-### 5.7 Operator
+---
 
-The operator manually drives the Jackal. The operator does not make the hidden-corridor safety decision.
+## 2.3 Solid connection = wired physical/data connectivity
 
-The Radar/RIS-derived safety mechanism can override the operator's motion command when required.
+A normal solid connection represents a wired physical/data relationship.
 
-## 6. Data and Control Flows
+```mermaid
+flowchart LR
+    A["Device A"] --- U(["USB"]) --- B["Device B"]
+```
 
-| Flow | Source | Destination | Purpose |
-|---|---|---|---|
-| Moving-obstacle observation | Physical environment | Radar/RIS system | Detect motion in either corridor |
-| Safety state | Radar/RIS processing | Corner NRF board | Convert sensing result into communication input |
-| BLE safety broadcast | Corner NRF board | Jackal-side NRF board | Carry hazard/clear information wirelessly |
-| Decoded safety state | Jackal-side NRF board | Jackal computer | Provide robot-readable safety information |
-| Teleoperation command | Operator control interface | Jackal safety supervisor | Request normal robot motion |
-| Final motion command | Safety supervisor | Jackal controller | Allow motion or force/prevent motion based on safety state |
-| Experiment logs | Relevant software components | Data-collection laptop / storage | Record sensing, communication, and robot response timing/events |
+Examples:
 
-## 7. Priority Rule
+- Radar ↔ Central Laptop over USB
+- RIS ↔ Central Laptop over USB
+- Laptop ↔ NRF board over USB
+- Jackal Laptop ↔ Jackal Robot over Ethernet
 
-The central control rule is:
+The line itself means **connectivity**, not control authority.
 
-> A safety stop or motion inhibition caused by the Radar/RIS safety state must have higher priority than a normal teleoperation velocity command.
+---
 
-The operator must not be able to drive through an active safety stop simply by continuing to send `cmd_vel` commands.
+## 2.4 Dashed directional connection = wireless broadcast
 
-## 8. System Boundary
+The BLE hop leaves one local physical assembly and reaches another physical assembly wirelessly.
 
-### Included
+It is therefore drawn as a dashed directional path.
 
-- Radar/RIS safety-state output used by the robotics experiment;
-- corner-side NRF integration;
-- BLE safety communication;
-- Jackal-side NRF integration;
-- robot-side safety supervisor;
-- teleoperation command arbitration;
-- experiment logging needed to reconstruct sensing-to-action behavior.
+```mermaid
+flowchart LR
+    TX["NRF Transmitter"] -.-> B(["BLE Broadcast"]) -.-> RX["NRF Receiver"]
+```
 
-### Not part of the current design objective
+The arrow direction expresses the broadcast direction used by this experiment.
 
-- autonomous navigation;
-- SLAM;
-- localization-based route planning;
-- autonomous obstacle avoidance using the Jackal's own sensors;
-- replacing the Radar/RIS detector with robot-local perception;
-- benchmarking Husky versus Jackal as robotics platforms.
+---
 
-## 9. Hardware Platform
+## 2.5 Enclosure = same local/core assembly
 
-The current robot platform is the Clearpath Jackal.
+A labelled enclosure means that the enclosed blocks belong to the same local system assembly for the purpose of this architecture.
 
-The Jackal is intended to be used during normal working hours because moving it to the office requires additional administrative approval and a professor's signature.
+For example, the NRF board attached by USB to the Central Laptop is shown **inside the Central Sensing Core** because we have not yet left that core device/assembly.
 
-The Jackal currently has a wooden rack/platform that can carry the data-collection laptop during testing.
+Likewise, the receiving NRF board and the laptop mounted above the Jackal belong to the **Jackal-Side Compute Core**.
 
-The detailed platform tradeoff and the move from Husky to Jackal are recorded separately in the decision log.
+```mermaid
+flowchart LR
+    subgraph CORE["One Local Core / Assembly"]
+        direction LR
+        A["Laptop"] --- U(["USB"]) --- B["Attached NRF Board"]
+    end
+```
 
-## 10. Communication Decision
+An enclosure does **not** mean the NRF board is physically inside the laptop chassis. It means it is locally attached to and operationally part of that compute assembly.
 
-The safety communication path uses BLE with NRF boards.
+---
 
-The earlier design considered placing the operator, robot, and Radar/RIS computer on a common Wi-Fi network and carrying robot control, camera/video, telemetry, and safety-state traffic over that network. The design was simplified so that the safety state is instead carried through a dedicated BLE link using NRF boards.
+## 2.6 Hexagonal block + thick arrow = control
 
-The detailed Wi-Fi-to-BLE rationale is recorded separately in the decision log.
+Connectivity and control are deliberately different concepts in these figures.
 
-## 11. Logging Requirements at System Level
+A **hexagonal block** represents a control input, control signal, or control authority.
 
-The experiment should eventually be able to reconstruct the sequence:
+A **thick directional arrow** represents control influence.
+
+```mermaid
+flowchart LR
+    C{{"CONTROL INPUT"}} ==> R["Controlled Device"]
+```
+
+This is intentionally different from:
+
+```mermaid
+flowchart LR
+    A["Device A"] --- I(["USB"]) --- B["Device B"]
+```
+
+The first says:
+
+> this input controls behavior.
+
+The second says:
+
+> these devices are connected using this technology.
+
+A physical connection may carry a control signal, but the two concepts are drawn separately when control meaning matters.
+
+---
+
+# 3. Figure 1 — Initial physical system architecture
+
+This is the initial end-to-end physical architecture.
+
+```mermaid
+flowchart LR
+
+    RADAR["RADAR"]
+    RIS["RIS"]
+
+    subgraph CENTRAL["CENTRAL SENSING CORE"]
+        direction LR
+        CL["Central Laptop<br/>Radar/RIS data gathering"]
+        UTX(["USB"])
+        TX["NRF BLE Board<br/>Transmitter"]
+
+        CL --- UTX --- TX
+    end
+
+    BLE(["BLE Broadcast"])
+
+    subgraph JACKALCORE["JACKAL-SIDE COMPUTE CORE"]
+        direction LR
+        RX["NRF BLE Board<br/>Receiver"]
+        URX(["USB"])
+        JL["Laptop above Jackal"]
+
+        RX --- URX --- JL
+    end
+
+    ETH(["Ethernet"])
+    JACKAL["Jackal Robot"]
+
+    UR(["USB"])
+    UI(["USB"])
+
+    RADAR --- UR --- CL
+    RIS --- UI --- CL
+
+    TX -.-> BLE -.-> RX
+
+    JL --- ETH --- JACKAL
+```
+
+## 3.1 Read Figure 1 as a sentence
 
 ```text
-Radar/RIS detection
-        -> safety state generated
-        -> BLE message transmitted
-        -> BLE message received
-        -> robot safety state updated
-        -> final robot command selected
-        -> robot stopped / motion allowed
+RADAR
+  -- USB -->
+Central Laptop
+
+RIS
+  -- USB -->
+Central Laptop
+
+Central Laptop
+  -- USB -->
+NRF BLE Transmitter
+
+NRF BLE Transmitter
+  -- BLE BROADCAST -->
+NRF BLE Receiver
+
+NRF BLE Receiver
+  -- USB -->
+Laptop above Jackal
+
+Laptop above Jackal
+  -- ETHERNET -->
+Jackal Robot
 ```
 
-The exact timestamp sources, log schema, and synchronization method are not yet defined.
+---
 
-## 12. Safety Boundary
+# 4. Figure 2 — Core-boundary view
 
-The software safety supervisor is part of the research integration. It does not replace the Jackal's physical emergency-stop mechanism or supervised experimental procedures when people are present.
+The same architecture can be simplified to show exactly **where the system leaves one core and enters another**.
 
-For the system design, loss-of-communication behavior, stale safety information, startup state, recovery behavior, and fail-safe semantics must be explicitly defined before human-in-the-loop testing.
+```mermaid
+flowchart LR
 
-## 13. Planned Decomposition
+    subgraph SENSING["CENTRAL SENSING CORE"]
+        direction TB
 
-This parent document will later be decomposed into focused subsystem documents under `system/`.
+        R["Radar"]
+        I["RIS"]
+        C["Central Laptop"]
+        T["NRF BLE TX Board"]
 
-Expected pieces are:
+        R --- RU(["USB"]) --- C
+        I --- IU(["USB"]) --- C
+        C --- TU(["USB"]) --- T
+    end
 
-1. **Sensing Interface** — what the Radar/RIS system must expose to the robotics integration.
-2. **BLE Communication** — NRF-to-NRF message protocol and failure behavior.
-3. **Jackal Integration** — NRF receiver connection to the Jackal computer.
-4. **Safety Supervisor** — `cmd_vel` arbitration and stop behavior.
-5. **Teleoperation** — operator command path and any camera/remote-view requirements.
-6. **Logging and Timing** — event logs, timestamps, and experiment reconstruction.
-7. **System Safety / Failure Handling** — startup, disconnect, stale data, recovery, and emergency procedures.
+    AIR(["BLE over air"])
 
-These documents should refine this architecture rather than redefine the overall system independently.
+    subgraph MOBILE["JACKAL-SIDE COMPUTE CORE"]
+        direction TB
+
+        X["NRF BLE RX Board"]
+        L["Laptop above Jackal"]
+
+        X --- XU(["USB"]) --- L
+    end
+
+    J["Jackal Robot"]
+
+    T -.-> AIR -.-> X
+    L --- EN(["Ethernet"]) --- J
+```
+
+The important boundary is the BLE hop:
+
+```text
+CENTRAL SENSING CORE
+        |
+        | BLE
+        v
+JACKAL-SIDE COMPUTE CORE
+        |
+        | Ethernet
+        v
+     JACKAL
+```
+
+Everything before the BLE hop belongs to the corner/sensing-side assembly.
+
+Everything immediately after the BLE hop belongs to the mobile Jackal-side compute assembly.
+
+---
+
+# 5. Figure 3 — Information acquisition side
+
+The sensing side has two independent sensing devices feeding the same Central Laptop.
+
+They are peer inputs into the laptop.
+
+```mermaid
+flowchart LR
+
+    RADAR["RADAR"] --- RUSB(["USB"]) --- CL["Central Laptop"]
+    RIS["RIS"] --- IUSB(["USB"]) --- CL
+
+    CL --- BUSB(["USB"]) --- NRF["NRF BLE TX Board"]
+```
+
+The Central Laptop is therefore the first common compute point in the robotics integration.
+
+```text
+Radar data ----\
+                > Central Laptop -> NRF BLE board
+RIS data ------/
+```
+
+This diagram deliberately does **not** define the Radar or RIS internal sensing algorithms. It only defines their place in the system architecture and their physical connection to the Central Laptop.
+
+---
+
+# 6. Figure 4 — BLE bridge between the two compute cores
+
+The NRF boards form the wireless bridge between the sensing-side compute and the robot-side compute.
+
+```mermaid
+flowchart LR
+
+    CL["Central Laptop"] --- U1(["USB"]) --- TX["NRF BLE TX"]
+
+    TX -.-> B(["BLE Broadcast"]) -.-> RX["NRF BLE RX"]
+
+    RX --- U2(["USB"]) --- JL["Laptop above Jackal"]
+```
+
+The BLE link is intentionally narrow in responsibility.
+
+At the system level, its job is to carry the **STOP-related control information** from the Central Laptop side to the Jackal Laptop side.
+
+The detailed packet format, advertising scheme, timing, retransmission behavior, and exact NRF firmware are **not defined by this figure yet**.
+
+---
+
+# 7. Figure 5 — Jackal-side physical connectivity
+
+The Jackal-side compute path is:
+
+```mermaid
+flowchart LR
+
+    RX["NRF BLE RX Board"] --- U(["USB"]) --- JL["Laptop above Jackal"]
+    JL --- E(["Ethernet"]) --- J["Jackal Robot"]
+```
+
+The laptop above the Jackal is therefore the compute bridge between:
+
+```text
+BLE safety information
+        and
+Jackal robot actuation
+```
+
+The NRF board does not connect directly to the Jackal drive hardware in this initial architecture.
+
+---
+
+# 8. Figure 6 — Control convention applied to the Jackal
+
+The Jackal has **two control influences** in this experiment.
+
+They are intentionally drawn differently from ordinary connectivity.
+
+```mermaid
+flowchart LR
+
+    JOY{{"JOYSTICK CONTROL"}}
+    STOP{{"STOP BROADCAST CONTROL"}}
+
+    JL["Laptop above Jackal"]
+    J["Jackal Robot"]
+
+    JOY ==> JL
+    STOP ==> JL
+    JL ==> J
+```
+
+This is a **logical control figure**, not a physical wiring figure.
+
+It says:
+
+1. The joystick provides normal motion-control intent.
+2. The STOP broadcast provides safety-control intent.
+3. Both control influences reach the Jackal through the laptop above the robot.
+4. The Jackal Laptop is the point from which the effective robot-control command reaches the Jackal.
+
+The exact software mechanism that combines these two control influences is intentionally left open for the next design step.
+
+---
+
+# 9. Figure 7 — Where the STOP control signal comes from
+
+The STOP control is not an independent manual button in this architecture.
+
+It originates from the sensing-side system.
+
+```mermaid
+flowchart LR
+
+    R["Radar"] --- RU(["USB"]) --- CL["Central Laptop"]
+    I["RIS"] --- IU(["USB"]) --- CL
+
+    CL ==> STOP{{"STOP Broadcast<br/>Control Signal"}}
+
+    STOP ==> TX["NRF BLE TX"]
+    TX -.-> B(["BLE"]) -.-> RX["NRF BLE RX"]
+    RX ==> JL["Laptop above Jackal"]
+    JL ==> J["Jackal Robot"]
+```
+
+This figure expresses the control meaning:
+
+```text
+Radar / RIS information
+        |
+        v
+Central Laptop
+        |
+        v
+STOP control signal
+        |
+        v
+BLE transmission
+        |
+        v
+Jackal Laptop
+        |
+        v
+Jackal control
+```
+
+---
+
+# 10. Figure 8 — Normal-control path versus STOP-control path
+
+The two control stories can now be drawn independently.
+
+## 10.1 Normal-control path
+
+```mermaid
+flowchart LR
+
+    JOY{{"Joystick Controller"}} ==> JL["Laptop above Jackal"]
+    JL ==> J["Jackal Robot"]
+```
+
+Meaning:
+
+```text
+Joystick -> Jackal Laptop -> Jackal
+```
+
+## 10.2 STOP-control path
+
+```mermaid
+flowchart LR
+
+    CL["Central Laptop"] ==> STOP{{"STOP Control Signal"}}
+    STOP ==> TX["NRF BLE TX"]
+    TX -.-> B(["BLE Broadcast"]) -.-> RX["NRF BLE RX"]
+    RX ==> JL["Laptop above Jackal"]
+    JL ==> J["Jackal Robot"]
+```
+
+Meaning:
+
+```text
+Central Laptop
+    -> STOP control
+    -> NRF TX
+    -> BLE
+    -> NRF RX
+    -> Jackal Laptop
+    -> Jackal
+```
+
+The physical transport technologies can change from segment to segment while the **logical STOP control path remains one continuous control story**.
+
+---
+
+# 11. Figure 9 — Complete initial design: physical architecture + control meaning
+
+This is the initial complete system view.
+
+```mermaid
+flowchart LR
+
+    RADAR["RADAR"]
+    RIS["RIS"]
+
+    subgraph CENTRAL["CENTRAL SENSING CORE"]
+        direction LR
+
+        CL["Central Laptop<br/>Collects Radar + RIS information"]
+        UTX(["USB"])
+        TX["NRF BLE TX Board"]
+
+        CL --- UTX --- TX
+    end
+
+    BLE(["BLE Broadcast"])
+
+    subgraph MOBILE["JACKAL-SIDE COMPUTE CORE"]
+        direction LR
+
+        RX["NRF BLE RX Board"]
+        URX(["USB"])
+        JL["Laptop above Jackal"]
+
+        RX --- URX --- JL
+    end
+
+    ETH(["Ethernet"])
+    JACKAL["Jackal Robot"]
+
+    JOY{{"JOYSTICK CONTROL"}}
+    STOP{{"STOP BROADCAST CONTROL"}}
+
+    RUSB(["USB"])
+    IUSB(["USB"])
+
+    RADAR --- RUSB --- CL
+    RIS --- IUSB --- CL
+
+    TX -.-> BLE -.-> RX
+
+    JL --- ETH --- JACKAL
+
+    JOY ==> JL
+    CL ==> STOP
+    STOP ==> TX
+    RX ==> JL
+    JL ==> JACKAL
+```
+
+## 11.1 What this complete figure says
+
+### Physical/data architecture
+
+```text
+Radar --USB--\
+              \
+               Central Laptop --USB-- NRF TX --BLE-- NRF RX --USB-- Jackal Laptop --Ethernet-- Jackal
+              /
+RIS ----USB--/
+```
+
+### Control architecture
+
+```text
+Joystick --------------------------------------> Jackal Laptop ---> Jackal
+
+Radar/RIS -> Central Laptop -> STOP Broadcast -> Jackal Laptop ---> Jackal
+```
+
+The two views are intentionally superimposed in Figure 9 because they describe different meanings over the same system.
+
+---
+
+# 12. Current system blocks
+
+The initial design therefore contains these major blocks:
+
+| Block | Role in the initial design |
+|---|---|
+| Radar | Sensing input to the Central Laptop |
+| RIS | Sensing input to the Central Laptop |
+| Central Laptop | Common sensing-side compute and origin of the STOP broadcast control signal |
+| Sensing-side NRF board | BLE transmitter attached to the Central Laptop by USB |
+| BLE link | Wireless bridge between the sensing-side and Jackal-side compute cores |
+| Jackal-side NRF board | BLE receiver attached to the Jackal Laptop by USB |
+| Laptop above Jackal | Robot-side compute point receiving control information and interfacing to the Jackal |
+| Jackal Robot | Controlled mobile platform |
+| Joystick Controller | Normal robot-control input |
+| STOP Broadcast Control | Safety-related control input originating from the Central Laptop side |
+
+---
+
+# 13. Current connection map
+
+| From | Connection technology | To |
+|---|---|---|
+| Radar | USB | Central Laptop |
+| RIS | USB | Central Laptop |
+| Central Laptop | USB | NRF BLE TX board |
+| NRF BLE TX board | BLE broadcast | NRF BLE RX board |
+| NRF BLE RX board | USB | Laptop above Jackal |
+| Laptop above Jackal | Ethernet | Jackal Robot |
+
+This table is secondary to the figures; it exists only as a compact textual index of the physical connectivity.
+
+---
+
+# 14. Current control map
+
+| Control source | Control path | Controlled target |
+|---|---|---|
+| Joystick Controller | Joystick → Jackal Laptop → Jackal | Jackal Robot |
+| STOP Broadcast Control | Central Laptop → NRF TX → BLE → NRF RX → Jackal Laptop → Jackal | Jackal Robot |
+
+The control map deliberately does not yet specify the internal arbitration implementation on the Jackal Laptop.
+
+---
+
+# 15. What is intentionally not decided yet
+
+The initial figure fixes the **system topology**, not every implementation detail.
+
+The following are intentionally left for later refinement:
+
+- exact Radar-to-laptop USB protocol;
+- exact RIS-to-laptop USB protocol;
+- exact Central-Laptop-to-NRF USB protocol;
+- exact NRF firmware organization;
+- BLE packet/message structure;
+- BLE broadcast interval;
+- how STOP and CLEAR are represented;
+- exact Jackal-side USB protocol;
+- joystick software stack;
+- exact Jackal control software interface;
+- exact STOP-versus-joystick arbitration mechanism;
+- logging architecture;
+- timing measurements;
+- failure and stale-message behavior.
+
+Those details should be added only when we intentionally design the corresponding subsystem.
+
+---
+
+# 16. Initial design summary figure
+
+For quick reference, the system can be reduced to one line:
+
+```mermaid
+flowchart LR
+
+    R["Radar"] --- U1(["USB"]) --- C["Central Laptop"]
+    I["RIS"] --- U2(["USB"]) --- C
+    C --- U3(["USB"]) --- T["NRF TX"]
+    T -.-> B(["BLE"]) -.-> X["NRF RX"]
+    X --- U4(["USB"]) --- L["Jackal Laptop"]
+    L --- E(["Ethernet"]) --- J["Jackal"]
+
+    Q{{"Joystick"}} ==> L
+    C ==> S{{"STOP Broadcast"}}
+    S ==> T
+    X ==> L
+    L ==> J
+```
+
+**Figure rule to remember:**
+
+```text
+LARGE BLOCK       = device / major compute element
+SMALL CAPSULE     = connection technology / interface stack
+SOLID LINK        = wired connectivity
+DASHED LINK       = wireless BLE broadcast
+HEXAGON           = control input / control signal
+THICK ARROW       = control influence
+ENCLOSURE         = same local/core system assembly
+```
+
+This is the baseline system figure from which the subsystem designs will be derived.
