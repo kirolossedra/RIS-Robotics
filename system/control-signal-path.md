@@ -58,14 +58,45 @@ The robotics work does not need to know or reproduce the internal Radar/RIS algo
 
 This assumption must be confirmed by the sensing team before the final pipeline-to-serial integration is fixed.
 
+> [!IMPORTANT]
+> **Sensing-team answer — processing-pipeline assumption**  
+> **Status:** _Pending response_  
+> **Please confirm or correct:** Is the object-detection result available on the sensing computer in an accessible stage of the existing Radar/RIS processing pipeline?  
+> **Team response:** _TBD — replace this line with the confirmed architecture / correction._
+
 ## 3. Exact ask from the sensing team
 
-Only two things are required from their side:
+Only two things are required from their side. Each ask has a deliberately separate response block so the eventual answer becomes part of the system record rather than remaining only in chat or a meeting.
 
-1. **Identify the insertion point** in the current processing pipeline where the required object-detection event is available.
-2. **Permit a serial-output step** at that point so the computer can send a compact trigger to the connected NRF transmitter whenever the detection condition occurs.
+### Ask 1 — Identify the object-detection insertion point
+
+**Request:** Identify the point in the current processing pipeline where the required object-detection event is available.
+
+> [!NOTE]
+> **Sensing-team answer — Ask 1**  
+> **Status:** _Pending response_  
+> **Pipeline block / stage:** _TBD_  
+> **Available event or state:** _TBD_  
+> **How that event can be accessed:** _TBD_  
+> **Relevant code/module, if applicable:** _TBD_  
+> **Additional constraints or comments:** _TBD_
+
+### Ask 2 — Allow the detection event to produce a serial trigger
+
+**Request:** Permit a serial-output step at that point so the computer can send a compact trigger to the connected NRF transmitter whenever the detection condition occurs.
+
+> [!NOTE]
+> **Sensing-team answer — Ask 2**  
+> **Status:** _Pending response_  
+> **Serial-output step permitted / feasible:** _TBD_  
+> **Where the serial-output code should be inserted:** _TBD_  
+> **Trigger representation (`STOP` / `CLEAR` or equivalent):** _TBD_  
+> **Serial interface / port constraints:** _TBD_  
+> **Relevant implementation constraints or comments:** _TBD_
 
 The interface can remain minimal; for example, a compact `STOP` / `CLEAR` state or equivalent representation is sufficient. Raw sensing data do not need to cross into the robotics system.
+
+Once these answer blocks are filled, they become the authoritative integration contract for the boundary between the sensing system and the robotics work. If the team's answer changes the assumed architecture, the downstream diagram and implementation plan should be updated from that confirmed answer rather than preserving the earlier assumption.
 
 ## 4. Robotics-side deliverable A — BLE transport
 
@@ -154,8 +185,8 @@ The sensing-team dependency is isolated to **A/B**. The BLE, laptop bridge, and 
 |---|---|---|
 | Two NRF boards | Available | No additional BLE hardware currently required |
 | BLE TX/RX implementation | In progress / planned | Expected within a few hours; target before 2026-09-17 session |
-| Sensing-pipeline event location | Needs confirmation | Main ask for sensing team |
-| Pipeline event → serial trigger | Pending | Depends on confirmed insertion point |
+| Sensing-pipeline event location | Needs confirmation | Main ask for sensing team; answer placeholder is in Section 3 |
+| Pipeline event → serial trigger | Pending | Depends on confirmed insertion point; answer placeholder is in Section 3 |
 | NRF RX → laptop serial listener | Pending | Robotics-side work |
 | Persistent SSH bridge | Pending | Robotics-side work over Ethernet |
 | ROS stop arbitration | Pending | More involved; can be developed independently on Jackal |
