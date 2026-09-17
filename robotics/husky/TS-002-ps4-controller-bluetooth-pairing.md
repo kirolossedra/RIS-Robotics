@@ -1,6 +1,9 @@
 # TS-002 — Husky PS4 Controller Bluetooth Pairing
 
-**Status:** In progress — Bluetooth pairing recovered; controller/input and teleoperation verification pending  
+> [!IMPORTANT]
+> **Controller identity:** **Husky 3** = `48:18:8D:52:67:63`. Preserve this mapping. The Husky has multiple remembered devices named `Wireless Controller`, so the MAC address is the reliable identifier.
+
+**Status:** 🟡 In progress — Bluetooth pairing recovered; controller/input and teleoperation verification pending  
 **Date:** 2026-09-17  
 **Platform:** Clearpath Husky A200  
 **Host:** `husky1`  
@@ -9,6 +12,29 @@
 **Controller identity:** **Husky 3**  
 **Controller MAC:** `48:18:8D:52:67:63`  
 **Area:** Ethernet access, SSH, Bluetooth controller pairing, and later teleoperation
+
+## Investigation snapshot
+
+| Item | Result |
+|---|---|
+| Laptop → Husky Ethernet | ✅ Working |
+| Husky SSH | ✅ Working |
+| Bluetooth adapter `hci0` | ✅ `UP RUNNING PSCAN` |
+| `python3-ds4drv` | ✅ Installed |
+| Controller identity | ✅ **Husky 3** — `48:18:8D:52:67:63` |
+| Existing stored bond | ❌ Looked valid but could not establish usable connection |
+| Failure signature | ⚠️ `br-connection-create-socket` |
+| Old bond removed | ✅ Yes |
+| Fresh Bluetooth link key | ✅ Created |
+| Fresh `ds4drv-pair` | ✅ `Pairing successful` |
+| Controller input verification | ⏳ Pending |
+| ROS teleoperation | ⏳ Pending |
+
+> [!WARNING]
+> **Key failure pattern:** BlueZ reported `Paired: yes`, `Bonded: yes`, and `Trusted: yes`, but the controller still failed to remain connected. A valid-looking stored Bluetooth state did **not** mean the bond was actually usable.
+
+> [!NOTE]
+> **Best-supported diagnosis:** the previous Husky 3 Bluetooth bond was stale, inconsistent, or otherwise unusable for the BR/EDR HID connection. The exact low-level failure mechanism was not proven because no `btmon` trace was captured during the failed connection.
 
 ## Purpose
 
@@ -19,6 +45,9 @@ The immediate goal is to pair the PS4 controller to the Husky so the robot can l
 This document deliberately records the full troubleshooting path, not only the successful command, because the failure was caused by state that initially appeared valid: the controller was already shown by BlueZ as paired, bonded, and trusted, yet could not establish a usable HID connection.
 
 ## Controller identity
+
+> [!IMPORTANT]
+> **Husky 3** is the controller at Bluetooth MAC **`48:18:8D:52:67:63`**.
 
 The controller investigated here is physically/logically known as:
 
@@ -62,7 +91,7 @@ Observed result:
 rtt min/avg/max/mdev = 0.683/0.870/1.405/0.308 ms
 ```
 
-This confirmed that the laptop-to-Husky Ethernet path was healthy before Bluetooth troubleshooting began.
+**Conclusion:** the laptop-to-Husky Ethernet path was healthy before Bluetooth troubleshooting began.
 
 ## 2. SSH access
 
@@ -87,13 +116,14 @@ A stale shell startup reference was also observed:
 -bash: /home/administrator/ws/install/setup.bash: No such file or directory
 ```
 
-This appears unrelated to the Bluetooth pairing failure and was intentionally not modified during this investigation.
+> [!NOTE]
+> This stale workspace reference appears unrelated to the Bluetooth pairing failure and was intentionally not modified during this investigation.
 
 ## 3. PS4-specific Clearpath path
 
-The controller is a PS4 / DualShock 4 controller, not a PS5 / DualSense controller.
+The controller is a **PS4 / DualShock 4**, not a PS5 / DualSense controller.
 
-The Husky already had Clearpath's PS4 userspace driver package installed:
+The Husky already had the PS4 userspace driver package installed:
 
 ```bash
 dpkg -l | grep python3-ds4drv
@@ -107,13 +137,13 @@ ii  python3-ds4drv  0.8.0-noble  all  Sony DualShock 4 userspace driver for Linu
 
 The controller was put into Bluetooth pairing mode by holding **PS + SHARE** until the light bar rapidly flashed.
 
-The initial Clearpath-friendly pairing command was then run:
+The initial pairing command was then run:
 
 ```bash
 sudo ds4drv-pair
 ```
 
-Initial result:
+### Initial failure
 
 ```text
 ** This script must be run as sudo **
@@ -121,7 +151,8 @@ Searching for PS4 Controller...
 No Controller Found
 ```
 
-Despite the wording of the first line, the command had in fact been invoked with `sudo`; the important failure was `No Controller Found`.
+> [!WARNING]
+> The command had in fact been invoked with `sudo`; the significant failure was **`No Controller Found`**.
 
 ## 4. Bluetooth adapter verification
 
@@ -139,7 +170,7 @@ BD Address: CC:D9:AC:3C:9E:24
 UP RUNNING PSCAN
 ```
 
-This established that the Husky Bluetooth adapter itself was present, powered, running, and scanning-capable. The failure therefore moved away from a missing/down adapter and toward controller discovery or stored pairing state.
+**Conclusion:** the Husky Bluetooth adapter itself was present, powered, running, and scanning-capable. The failure therefore moved away from a missing/down adapter and toward controller discovery or stored pairing state.
 
 ## 5. Manual BlueZ discovery
 
@@ -149,7 +180,7 @@ This established that the Husky Bluetooth adapter itself was present, powered, r
 sudo bluetoothctl
 ```
 
-The controller reported:
+The adapter reported:
 
 ```text
 Controller CC:D9:AC:3C:9E:24 Pairable: yes
@@ -205,9 +236,8 @@ UUID: PnP Information
 Modalias: usb:v054Cp09CCd0100
 ```
 
-This was an important observation: from BlueZ's stored state, the controller appeared correctly known to the Husky.
-
-However, it was not connected.
+> [!WARNING]
+> **Critical observation:** from BlueZ's stored state, Husky 3 looked correctly paired, bonded, and trusted — but it was **not connected**. This apparent health was misleading.
 
 ## 7. Failed reconnect despite valid-looking bond
 
@@ -217,7 +247,7 @@ A direct reconnect was attempted:
 bluetoothctl connect 48:18:8D:52:67:63
 ```
 
-Result:
+### Failure signature
 
 ```text
 Attempting to connect to 48:18:8D:52:67:63
@@ -225,7 +255,8 @@ Attempting to connect to 48:18:8D:52:67:63
 Failed to connect: org.bluez.Error.Failed br-connection-create-socket
 ```
 
-The device briefly transitioned to `Connected: yes`, but the connection failed while BlueZ was creating the BR/EDR connection socket.
+> [!WARNING]
+> **This is the central failure signature of the incident.** The controller briefly reached `Connected: yes`, then BlueZ failed with **`br-connection-create-socket`** and the device dropped back to `Connected: no`.
 
 A subsequent check showed:
 
@@ -239,7 +270,7 @@ Therefore the controller was not remaining connected.
 
 ## 8. Working hypothesis
 
-At this point the evidence indicated that the problem was not:
+At this point the evidence indicated that the problem was **not**:
 
 - Ethernet connectivity;
 - SSH access;
@@ -273,7 +304,8 @@ br-connection-create-socket
 Connected: no
 ```
 
-The leading hypothesis was therefore a **stale or otherwise unusable existing Bluetooth bond** between the Husky and Husky 3.
+> [!IMPORTANT]
+> **Leading hypothesis:** the existing Bluetooth bond between the Husky and Husky 3 was **stale or otherwise unusable**.
 
 This diagnosis is strongly supported by the recovery sequence below, but the precise low-level security/socket failure was **not directly proven**. A packet/controller trace such as `btmon` during the failed connection would have been required to prove exactly which Bluetooth handshake or stored-key condition failed.
 
@@ -292,13 +324,13 @@ Result:
 Device has been removed
 ```
 
-This deliberately forced the next attempt to create a new bond rather than reuse the apparently valid but unusable stored one.
+**Purpose of this step:** force the next attempt to create a new bond rather than reuse the apparently valid but unusable stored one.
 
 ## 10. Fresh pairing
 
 The PS4 controller was again placed into pairing mode with **PS + SHARE**.
 
-Then the Clearpath PS4 pairing command was retried:
+Then the PS4 pairing command was retried:
 
 ```bash
 sudo ds4drv-pair
@@ -321,30 +353,55 @@ hci0 new_link_key 48:18:8D:52:67:63 type 0x04 pin_len 0 store_hint 1
 Pairing successful
 ```
 
-The most important new event is:
+> [!IMPORTANT]
+> **Recovery evidence:** `hci0 new_link_key 48:18:8D:52:67:63` proves that the repair generated a **fresh Bluetooth link key**, after which bonding, service resolution, and pairing completed successfully.
+
+### Resolution checkpoint
 
 ```text
-hci0 new_link_key 48:18:8D:52:67:63
+OLD BOND
+Paired/Bonded/Trusted
+        |
+        v
+Connection fails
+br-connection-create-socket
+        |
+        v
+REMOVE DEVICE
+        |
+        v
+PS + SHARE
+        |
+        v
+sudo ds4drv-pair
+        |
+        v
+NEW LINK KEY
+        |
+        v
+Bonded + ServicesResolved + Paired
+        |
+        v
+Pairing successful
 ```
-
-A fresh Bluetooth link key was created, followed by successful bonding, service resolution, and pairing.
 
 ## 11. Root-cause assessment
 
-### Confirmed facts
+### ✅ Confirmed facts
 
 The following are directly supported by the observed logs:
 
-1. Husky 3 is `48:18:8D:52:67:63`.
-2. Before repair, BlueZ considered it paired, bonded, and trusted.
-3. A reconnect briefly reached `Connected: yes` but failed with `br-connection-create-socket` and returned to `Connected: no`.
+1. **Husky 3 is `48:18:8D:52:67:63`.**
+2. Before repair, BlueZ considered it **paired, bonded, and trusted**.
+3. A reconnect briefly reached `Connected: yes` but failed with **`br-connection-create-socket`** and returned to `Connected: no`.
 4. Removing the stored device record deleted the previous bond.
 5. Re-entering PS4 pairing mode and running `ds4drv-pair` generated a **new link key**.
-6. The fresh bond completed successfully with `Bonded: yes`, `ServicesResolved: yes`, `Paired: yes`, and `Pairing successful`.
+6. The fresh bond completed successfully with `Bonded: yes`, `ServicesResolved: yes`, `Paired: yes`, and **`Pairing successful`**.
 
-### Best-supported diagnosis
+### 🔎 Best-supported diagnosis
 
-The previous Husky 3 Bluetooth bond was **stale, inconsistent, or otherwise unusable for establishing the controller's BR/EDR HID connection**.
+> [!IMPORTANT]
+> The previous Husky 3 Bluetooth bond was **stale, inconsistent, or otherwise unusable for establishing the controller's BR/EDR HID connection**.
 
 The repair was:
 
@@ -357,13 +414,12 @@ remove old BlueZ device/bond
         -> pairing succeeds
 ```
 
-### What is not proven
+### ⚠️ What is not proven
 
 The logs do not prove exactly why the old bond had become unusable. Possible low-level causes include stale link-key/security state or another BlueZ BR/EDR HID reconnection problem, but naming one of these as the exact mechanism would overstate the evidence available from this session.
 
-The operational conclusion is therefore intentionally narrower:
-
-> Husky 3 had an existing BlueZ bond that appeared valid but could not establish a stable usable connection. Deleting the existing record and performing a clean `ds4drv-pair` generated a new link key and restored successful pairing.
+> [!NOTE]
+> **Operational conclusion:** Husky 3 had an existing BlueZ bond that appeared valid but could not establish a stable usable connection. Deleting the existing record and performing a clean `ds4drv-pair` generated a new link key and restored successful pairing.
 
 ## 12. Troubleshooting procedure established for this Husky
 
@@ -382,26 +438,28 @@ If Husky 3 later appears as paired/trusted but cannot reconnect, use this invest
 10. Verify controller input and ROS teleoperation separately
 ```
 
-Do not repeatedly remove/re-pair the controller as a generic first step. The stored bond should be reset when the evidence indicates that the existing bond is the failing layer.
+> [!CAUTION]
+> Do **not** repeatedly remove/re-pair the controller as a generic first step. Reset the stored bond when the evidence indicates that the existing bond is the failing layer.
 
 ## Current state
 
-At the end of this part of the investigation:
+| Layer | State |
+|---|---|
+| Laptop Ethernet | ✅ Configured and working |
+| Husky `192.168.131.1` | ✅ Reachable |
+| SSH as `robot` | ✅ Working |
+| Bluetooth adapter `hci0` | ✅ `UP / RUNNING` |
+| `python3-ds4drv` | ✅ Installed |
+| Controller identity | ✅ **Husky 3** |
+| Husky 3 MAC | ✅ `48:18:8D:52:67:63` |
+| Previous Bluetooth bond | ✅ Removed after failed reconnect |
+| Fresh Bluetooth link key | ✅ Created |
+| Fresh pairing | ✅ Successful |
+| HID services during pairing | ✅ Resolved |
+| Persistent controller connection | ⏳ Not yet independently verified |
+| Linux joystick/input device | ⏳ Not yet verified |
+| ROS joystick topic | ⏳ Not yet verified |
+| Husky teleoperation | ⏳ Not yet verified |
 
-- Laptop Ethernet: **configured and working**
-- Husky IP: **`192.168.131.1` reachable**
-- SSH as `robot`: **working**
-- Bluetooth adapter `hci0`: **UP / RUNNING**
-- PS4 driver package `python3-ds4drv`: **installed**
-- Controller: **Husky 3**
-- Husky 3 MAC: **`48:18:8D:52:67:63`**
-- Previous Bluetooth bond: **removed after failed reconnect**
-- Fresh Bluetooth link key: **created**
-- Fresh pairing: **successful**
-- HID services: **resolved during pairing**
-- Persistent controller connection after pairing: **not yet independently verified**
-- Linux joystick/input device behavior: **not yet verified**
-- ROS joystick topic: **not yet verified**
-- Husky teleoperation from PS4 controller: **not yet verified**
-
-The next investigation step should begin from controller/input verification rather than repeating Ethernet or pairing work that has already been established.
+> [!IMPORTANT]
+> **Next investigation boundary:** continue from **controller/input verification**. Do not repeat Ethernet or Bluetooth pairing work that has already been established unless new evidence indicates regression.
