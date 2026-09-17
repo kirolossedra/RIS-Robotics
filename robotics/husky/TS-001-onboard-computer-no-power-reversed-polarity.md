@@ -74,6 +74,36 @@ The blue USB cable in the bay is separate from computer power and is associated 
 
 The yellow Ethernet cable was connected to the onboard computer, but Ethernet could not become active while the computer itself was unpowered.
 
+## Photo evidence
+
+The following are the actual photos captured during this troubleshooting session. They are stored with this incident and rendered here using repository-relative paths.
+
+### 1. Husky user-power panel
+
+![Husky A200 user-power panel showing the 24 V, 12 V and 5 V rails](images/TS-001/01-husky-user-power-panel.jpg)
+
+The relevant computer supply was identified as the green **12 V / 5 A** rail. The computer had separately been confirmed to require 12 V.
+
+### 2. Onboard computer and DC input
+
+![Husky onboard computer and its connected DC power input](images/TS-001/02-onboard-computer-and-dc-input.jpg)
+
+The onboard computer had a power connector physically attached, despite showing no sign of power. This was important because a seated connector initially made a disconnected power path appear less likely.
+
+### 3. 12 V harness overview
+
+![Overview of the Husky 12 V harness and onboard computer wiring](images/TS-001/03-12v-harness-overview.jpg)
+
+This view established that the installed power wiring is a modified/split harness rather than the simplest stock single-output arrangement.
+
+### 4. Split-harness connector detail
+
+![Close view of the two loose barrel outputs from the Husky 12 V split harness](images/TS-001/04-12v-split-harness-connectors.jpg)
+
+Two loose barrel-style outputs were present on the same 12 V harness while a different connector branch was already feeding the onboard computer. The loose barrel outputs were therefore not, by themselves, proof that the computer power lead was missing.
+
+These photos document the physical state **before the final root cause was identified: reversed polarity on the computer's 12 V feed**.
+
 ## False leads considered during troubleshooting
 
 Several plausible explanations were considered before the actual root cause was found:
