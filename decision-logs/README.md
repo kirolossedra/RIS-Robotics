@@ -9,6 +9,7 @@ This directory records significant design decisions for the RIS Robotics experim
 | [DL-003](DL-003-jackal-control-serial-ssh-ros.md) | Bridge the received serial STOP state into the Jackal through persistent SSH, with ROS-side command arbitration | Accepted for initial implementation |
 | [DL-004](DL-004-shared-transceiver-firmware.md) | Use one shared Transceiver firmware with TX/RX roles, coded S=8 advertising, and latched `OBS`/`CLR` state | Accepted |
 | [DL-005](DL-005-husky-radar-obstacle-footprint.md) | Start Husky work only as a stationary or moving physical obstacle for Radar obstacle-footprint data collection | Accepted |
+| [DL-006](DL-006-husky-power-troubleshooting-conventions.md) | Standardize Husky computer power, bottom-up troubleshooting, incident separation, and preservation of original photo evidence | Accepted |
 
 ## Experiment context
 
