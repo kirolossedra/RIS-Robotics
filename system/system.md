@@ -12,8 +12,8 @@ The robotics contribution is therefore deliberately narrow:
 
 1. obtain an object-detection event from the existing Radar/RIS processing pipeline;
 2. convert that event to a serial trigger;
-3. transport the trigger over BLE using two Nordic NRF boards;
-4. receive the trigger on the Jackal-side laptop;
+3. transport the latched `OBS` / `CLR` state over BLE Coded PHY S=8 using the shared Transceiver firmware on two Nordic NRF boards;
+4. receive deduplicated state transitions in a timestamping Python logger on the Jackal-side laptop;
 5. use the laptop's Ethernet connection and a persistent SSH session to cause the Jackal's onboard ROS system to assert a safety-stop input; and
 6. arbitrate that safety input above normal joystick motion commands.
 
@@ -29,7 +29,7 @@ flowchart LR
         PC["Radar/RIS Processing Computer<br/>Drives radar<br/>Runs real-time processing pipeline"]
         DETECT{{"Object-detection event"}}
         STX(["USB Serial"])
-        TX["NRF BLE Board<br/>TX"]
+        TX["Transceiver<br/>TX role; two LEDs"]
 
         RADAR --- RUSB --- PC
         RIS -.-> PC
@@ -37,15 +37,17 @@ flowchart LR
         DETECT --> STX --> TX
     end
 
-    BLE(["BLE Broadcast"])
+    BLE(["BLE Coded PHY S=8<br/>State broadcast"])
 
     subgraph MOBILE["JACKAL-SIDE BRIDGE"]
         direction LR
-        RX["NRF BLE Board<br/>RX"]
+        RX["Transceiver<br/>RX role; one LED"]
         SRX(["USB Serial"])
-        LAPTOP["Laptop on Jackal rack<br/>Serial-to-SSH bridge"]
+        LOGGER["Laptop on Jackal rack<br/>Python transition logger"]
+        LAPTOP["Later: serial-to-SSH bridge"]
 
-        RX --- SRX --- LAPTOP
+        RX --- SRX --- LOGGER
+        LOGGER -.-> LAPTOP
     end
 
     SSH(["Ethernet<br/>Persistent SSH"])
@@ -114,17 +116,21 @@ The robotics integration does not require raw Radar/RIS frames to leave their co
 
 ## Implementation on the robotics side
 
-### 1. BLE trigger transport
+### 1. Transceiver and serial logger
 
 Two NRF boards are already available. No additional hardware is currently required for the BLE link.
 
-The sensing-side board acts as the BLE transmitter and receives the detection trigger from the processing computer over USB serial. The Jackal-side board acts as the BLE receiver and exposes the received STOP state over USB serial to the laptop mounted on the Jackal.
+The two boards run one shared **Transceiver** application in different build-time roles. TX accepts newline-delimited `OBS` and `CLR` commands and latches the state until the opposite command arrives. It continuously advertises the current state using non-connectable extended advertising on BLE Coded PHY with an explicit S=8 coding request. RX scans on coded PHY only, suppresses repeated advertisements of the same state, and emits one serial `OBS` followed by one serial `CLR` per obstacle episode.
 
-The BLE TX-to-RX implementation is expected to require only a few hours of work and is targeted to be working before the **2026-09-17 session**. Once that link is operational, the remaining dependency for the first end-to-end deliverable is connecting the sensing pipeline's detection event to the serial input of the NRF transmitter.
+TX blinks the board-defined `led0` and `led1`; RX blinks only `led0`. A Python logger on the RX-side computer timestamps each serial transition in UTC and prints/persists it as JSON Lines.
 
-### 2. Jackal-side serial-to-SSH bridge
+The current implementation boundary ends at this logger. Once the standalone link is operational on hardware, the remaining sensing-side dependency is connecting the real pipeline event to the TX serial input.
 
-The receiving NRF board connects by USB serial to the laptop on the Jackal rack. A small process on this laptop listens continuously for the received control state.
+### 2. Later: Jackal-side serial-to-SSH bridge
+
+The receiving NRF board connects by USB serial to the laptop on the Jackal rack. A later process on this laptop will consume the logged transition stream for robot control.
+
+The SSH and robot-control path described below is downstream context and is not implemented as part of the Transceiver work.
 
 The laptop does **not** need a local ROS installation for the current architecture. Instead, it maintains a persistent SSH session over Ethernet to the Jackal's onboard computer, where ROS is already running. When the laptop receives a STOP event from serial, the bridge sends the corresponding command through the already-open SSH session so that the ROS-side action executes on the Jackal computer.
 
@@ -171,8 +177,8 @@ This ROS work can be developed independently using the Jackal without requiring 
 | Radar/RIS real-time processing | Sensing team | Existing system | Existing sensing setup |
 | Expose object-detection event | Sensing team + integration point | **Needs confirmation** | Accessible event in their pipeline |
 | Detection event → serial trigger | Integration boundary | **Pending pipeline access** | Serial output from sensing computer |
-| NRF TX → BLE → NRF RX | Robotics side | **Planned before 2026-09-17 session** | Two NRF boards already available |
-| NRF RX → laptop serial listener | Robotics side | Pending | Existing USB connection |
+| Shared Transceiver TX → BLE S=8 → RX | Robotics side | Implemented in repository; hardware smoke test required | Two NRF boards already available |
+| NRF RX → laptop serial logger | Robotics side | Implemented in repository | Existing USB connection; Python + pyserial |
 | Laptop → persistent SSH → Jackal | Robotics side | Pending | Ethernet link; no ROS required on laptop |
 | ROS safety input + joystick arbitration | Robotics side | Pending; more involved | Jackal access; ROS-side control work |
 | Full sensing-to-stop integration | Joint integration | Follows the blocks above | Sensing trigger + completed robotics path |

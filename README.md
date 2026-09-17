@@ -9,9 +9,9 @@ The project is intentionally narrow: the sensing system produces an object-detec
 ```text
 Radar/RIS detection
   → serial
-  → NRF TX
-  → BLE
-  → NRF RX
+  → Transceiver TX
+  → BLE Coded PHY S=8
+  → Transceiver RX
   → serial
   → Jackal-side laptop
   → persistent SSH / Ethernet
@@ -24,6 +24,7 @@ Radar/RIS detection
 - [`system/system.md`](system/system.md) — full-system architecture, responsibility boundaries, current assumptions, status, and bigger picture.
 - [`system/control-signal-path.md`](system/control-signal-path.md) — detailed control-signal journey, exact sensing-team ask, robotics-side deliverables, dependencies, and integration plan.
 - [`decision-logs/`](decision-logs/) — design decisions, including BLE transport, Jackal platform selection, and the serial-to-SSH-to-ROS control bridge.
+- [`firmware/`](firmware/) — shared TX/RX Transceiver firmware, RX serial logger, build, flashing, and smoke-test instructions.
 
 The software STOP path is part of the research integration and does not replace the Jackal's physical emergency stop or normal supervised laboratory safety procedures.
 
@@ -33,9 +34,9 @@ This is intentionally a lightweight day-to-day list rather than a formal project
 
 ### Today — Wednesday, 2026-09-16
 
-- [ ] Finish the standalone **NRF TX → BLE → NRF RX** communication path using the two available NRF boards.
-- [ ] Make the BLE path carry the simple control state needed by the experiment (`STOP` / `CLEAR`, or the final equivalent representation).
-- [ ] Verify the robot-side NRF can expose the received state to the Jackal-side laptop over USB serial.
+- [x] Implement the standalone shared **Transceiver TX → BLE → Transceiver RX** firmware path for the two available NRF boards.
+- [x] Make the BLE path carry the latched `OBS` / `CLR` state using coded S=8 advertising.
+- [ ] Hardware-smoke-test the robot-side Transceiver RX serial output on the two physical boards.
 - [ ] If time permits, prepare the small laptop-side serial listener / persistent-SSH bridge so the received serial event can later cause a command to execute on the Jackal onboard computer.
 - [ ] Keep the sensing-team questions and answer placeholders in [`system/control-signal-path.md`](system/control-signal-path.md) ready to fill in during the team session.
 

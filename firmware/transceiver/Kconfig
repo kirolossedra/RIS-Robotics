@@ -1,0 +1,24 @@
+mainmenu "RIS Transceiver"
+
+source "Kconfig.zephyr"
+
+menu "RIS Transceiver options"
+
+choice TRANSCEIVER_ROLE
+	prompt "Transceiver role"
+	default TRANSCEIVER_ROLE_RX
+
+config TRANSCEIVER_ROLE_TX
+	bool "TX (serial input to BLE advertising)"
+
+config TRANSCEIVER_ROLE_RX
+	bool "RX (BLE scanning to serial output)"
+
+endchoice
+
+config TRANSCEIVER_BLINK_INTERVAL_MS
+	int "Role-identification LED blink interval in milliseconds"
+	default 500
+	range 100 5000
+
+endmenu

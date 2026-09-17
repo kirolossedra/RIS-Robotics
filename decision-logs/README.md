@@ -7,6 +7,7 @@ This directory records significant design decisions for the RIS Robotics experim
 | [DL-001](DL-001-communication-wifi-to-ble.md) | Use BLE instead of Wi-Fi for the Radar/RIS-to-robot safety signal | Accepted |
 | [DL-002](DL-002-robot-platform-husky-to-jackal.md) | Use Clearpath Jackal instead of Husky for the mobile robot | Accepted |
 | [DL-003](DL-003-jackal-control-serial-ssh-ros.md) | Bridge the received serial STOP state into the Jackal through persistent SSH, with ROS-side command arbitration | Accepted for initial implementation |
+| [DL-004](DL-004-shared-transceiver-firmware.md) | Use one shared Transceiver firmware with TX/RX roles, coded S=8 advertising, and latched `OBS`/`CLR` state | Accepted |
 
 ## Experiment context
 

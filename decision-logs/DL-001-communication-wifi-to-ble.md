@@ -8,7 +8,7 @@
 
 The experiment requires the Radar/RIS sensing system to notify the mobile robot when a moving person or obstacle is detected in the conflicting corridor. The robot is teleoperated; the sensing system is not responsible for navigation. Its role is to provide a compact safety state that can be consumed by a robot-side supervisor with higher control authority than normal velocity commands.
 
-The information crossing this interface is intentionally small. The robot does not need raw radar or RIS data. It only needs the derived state required for the experiment, such as `STOP` / `CLEAR` or an equivalent compact message.
+The information crossing this interface is intentionally small. The robot does not need raw radar or RIS data. It only needs the derived state required for the experiment, represented on the Transceiver boundary as `OBS` / `CLR`.
 
 The current integration assumption is that the Infineon radar is connected by USB to the sensing computer, that this computer drives the radar, and that the relevant Radar/RIS detection information is processed in a real-time pipeline on that computer. The exact point at which the object-detection event is exposed still needs confirmation from the sensing team.
 
@@ -30,7 +30,7 @@ This was technically workable, but it coupled the small safety signal to a broad
 
 The Radar/RIS safety signal will use Bluetooth Low Energy rather than Wi-Fi.
 
-An NRF board on the Radar/RIS side receives the derived detection trigger over USB serial and broadcasts the compact state using BLE. A second NRF board on the Jackal side receives the BLE message and exposes the state over USB serial to the laptop mounted on the robot.
+An NRF board on the Radar/RIS side runs the TX role of the shared Transceiver firmware, receives `OBS` / `CLR` over USB serial, and broadcasts the latched state using BLE Coded PHY S=8. A second board runs the RX role, receives repeated BLE messages, and exposes only state transitions over USB serial to the laptop mounted on the robot.
 
 Conceptually:
 
