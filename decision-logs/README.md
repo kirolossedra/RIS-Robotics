@@ -8,6 +8,7 @@ This directory records significant design decisions for the RIS Robotics experim
 | [DL-002](DL-002-robot-platform-husky-to-jackal.md) | Use Clearpath Jackal instead of Husky for the mobile robot | Accepted |
 | [DL-003](DL-003-jackal-control-serial-ssh-ros.md) | Bridge the received serial STOP state into the Jackal through persistent SSH, with ROS-side command arbitration | Accepted for initial implementation |
 | [DL-004](DL-004-shared-transceiver-firmware.md) | Use one shared Transceiver firmware with TX/RX roles, coded S=8 advertising, and latched `OBS`/`CLR` state | Accepted |
+| [DL-005](DL-005-husky-radar-obstacle-footprint.md) | Start Husky work only as a stationary or moving physical obstacle for Radar obstacle-footprint data collection | Accepted |
 
 ## Experiment context
 
@@ -29,5 +30,7 @@ Radar/RIS object detection
 ```
 
 The sensing-team boundary is deliberately narrow: the team needs to expose the relevant object-detection event in its existing processing pipeline and allow that event to be emitted over serial. BLE transport, the robot-side bridge, and ROS stop arbitration are handled on the robotics side.
+
+Before that robot-control integration, the Husky may be used only as a physical Radar target for obstacle-footprint data collection. In that phase it is intentionally treated as a dumb obstacle, either stationary or moving through the corridor, with no Husky control integration required.
 
 These records capture architecture choices around that integration while keeping the primary research contribution focused on Radar/RIS detection rather than autonomous navigation.
