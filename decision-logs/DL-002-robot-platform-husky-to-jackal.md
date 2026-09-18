@@ -1,3 +1,74 @@
+# DL-002 — Robot Roles: Dual-Robot Architecture
+
+**Status:** Accepted — current architecture  
+**Date:** 2026-09-17  
+**Scope:** Robot roles in the RIS Robotics experiment
+
+## Current decision
+
+The experiment retains **both** Clearpath robots with distinct roles.
+
+- **Husky = Dummy Robot.** The Husky operates in the conflicting / hidden corridor as the moving physical obstacle observed by the Radar/RIS system. It exists to provide repeatable robot movement for sensing; sophisticated Husky autonomy is irrelevant.
+- **Jackal = Controlled Robot.** The Jackal operates in the controlled corridor. It remains manually teleoperated through `cmd_vel` and is the robot subject to the Radar/RIS-derived safety-control logic.
+
+This supersedes the earlier interpretation that Jackal simply replaced Husky as the experiment robot. Jackal remains the simpler controlled platform for the sensing-to-action demonstration, while Husky has gained a separate, non-control role as the moving Dummy Robot.
+
+## Two-corridor model
+
+```text
+Husky / Dummy Robot
+        |
+        | movement
+        v
+Conflicting / hidden corridor
+        |
+        v
+Radar / RIS sensing
+        |
+        v
+obstacle / occupancy state
+
+Teleoperator
+        |
+        | cmd_vel
+        v
+Jackal / Controlled Robot
+        |
+        v
+Controlled corridor
+```
+
+The Husky is not part of the Jackal control path. The Radar/RIS system does not directly command Jackal motors; it derives compact safety state. The Jackal-side computer owns the final control arbitration.
+
+## Consequences
+
+The historical Jackal-selection reasoning remains useful: both platforms can support teleoperation plus a safety override, and Jackal keeps the controlled-robot side operationally simple. That reasoning now applies specifically to **which robot is controlled**, not to eliminating Husky from the experiment.
+
+The current progression is:
+
+```text
+Initial Husky concept
+    ->
+Jackal selected as controlled experiment robot
+    ->
+Dual-robot architecture
+    Husky = Dummy Robot
+    Jackal = Controlled Robot
+```
+
+---
+
+## Archived Decisions
+
+> **ARCHIVED — historical engineering decision**
+>
+> **Introduced:** 2026-09-15  
+> **Superseded:** 2026-09-17  
+> **Superseded by:** Dual-robot architecture — Husky = Dummy Robot; Jackal = Controlled Robot  
+> **Reason:** Jackal remains the controlled robot, while Husky gained a distinct role as the moving Dummy Robot in the conflicting corridor. The earlier platform-selection reasoning remains valid for the controlled-robot role, but the conclusion that Jackal replaces Husky in the overall experiment no longer represents the active architecture.
+
+### Previous Decision: Husky -> Jackal
+
 # DL-002 — Robot Platform: Husky to Jackal
 
 **Status:** Accepted  

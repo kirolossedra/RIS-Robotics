@@ -1,7 +1,7 @@
 # DL-003 — Jackal-Side Control Bridge: Serial → Persistent SSH → ROS Arbitration
 
 **Status:** Accepted for the initial implementation  
-**Date:** 2026-09-16  
+**Date:** 2026-09-17  
 **Scope:** How a STOP state received from the BLE receiver reaches and overrides normal motion control on the Clearpath Jackal
 
 ## Context
@@ -66,15 +66,35 @@ while running:
 
 ## ROS control semantics
 
+The Jackal has only two logical motion-control authorities:
+
+1. normal teleoperation / `cmd_vel`;
+2. higher-priority safety STOP.
+
+Distance-to-corner is contextual state used to gate whether STOP is enforced. It is **not** a third control authority.
+
+The active rule is:
+
+```text
+if conflicting_corridor_unsafe
+   AND jackal_distance_to_corner <= DISTANCE_THRESHOLD:
+    STOP overrides cmd_vel
+else:
+    normal cmd_vel remains allowed
+```
+
+`DISTANCE_THRESHOLD = TBD`, and the source/method for Jackal distance-to-corner remains **TBD**.
+
 The STOP requirement is a control-priority rule, not a ROS topic-priority feature.
 
 ROS topics do not inherently have priority over one another. The implementation therefore needs a local command-arbitration mechanism on the Jackal. Normal joystick velocity commands and the Radar/RIS-derived safety state are inputs to a mux, supervisor, or equivalent control component.
 
 ```text
-Joystick / normal velocity command ----\
-                                        > ROS arbiter / mux --> base controller
-Radar/RIS STOP ------------------------/
-                higher authority
+Obstacle / safety state ----\
+                             > safety gating ----\
+Distance to corner ---------/                    \
+                                                  > ROS arbiter / mux --> base controller
+Joystick / cmd_vel ------------------------------/
 ```
 
 When STOP is asserted, the arbiter must prevent normal joystick motion from commanding the robot forward. When the safety state permits motion again, normal joystick control can resume according to the final experiment logic.

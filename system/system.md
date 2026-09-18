@@ -1,86 +1,93 @@
 # RIS Robotics — System Design
 
 **Status:** Current integration architecture  
-**Date:** 2026-09-16  
+**Date:** 2026-09-17  
 **Document role:** Maintain the full system picture while making the sensing-team boundary, control-signal route, Jackal-side ROS path, and current implementation responsibilities explicit.
 
 ## System Design
 
-The experiment connects the existing Radar/RIS sensing setup to a Clearpath Jackal so that a sensing result can directly stop robot motion. The Jackal remains manually driven; the Radar/RIS system provides an independent STOP authority when the conflicting corridor is occupied.
+The experiment now uses two robots with deliberately different responsibilities:
 
-The robotics contribution is therefore deliberately narrow:
+- **Husky = Dummy Robot.** It moves through the conflicting / hidden corridor as the repeatable physical obstacle observed by Radar/RIS. Sophisticated Husky autonomy is irrelevant to this experiment.
+- **Jackal = Controlled Robot.** It moves through the controlled corridor, remains manually teleoperated through `cmd_vel`, and is the robot whose motion is subject to the Radar/RIS-derived safety intervention.
 
-1. obtain an object-detection event from the existing Radar/RIS processing pipeline;
-2. convert that event to a serial trigger;
-3. transport the latched `OBS` / `CLR` state over BLE Coded PHY S=8 using the shared Transceiver firmware on two Nordic NRF boards;
-4. receive deduplicated state transitions in a timestamping Python logger on the Jackal-side laptop;
-5. use the laptop's Ethernet connection and a persistent SSH session to cause the Jackal's onboard ROS system to assert a safety-stop input; and
-6. arbitrate that safety input above normal joystick motion commands.
-
-The complete intended path is shown below.
+The Radar/RIS side derives a compact obstacle/safety state; raw sensing data do not need to reach the robot. That state crosses the existing USB → NRF → BLE → NRF → USB boundary. The Jackal-side computer combines the received safety state with Jackal distance-to-corner state and operator motion intent, then performs the final control arbitration through the Jackal-side ROS interface.
 
 ```mermaid
 flowchart LR
+    subgraph CONFLICT["CONFLICTING / HIDDEN CORRIDOR"]
+        H["Husky<br/>Dummy Robot"]
+        C["Moving physical obstacle"]
+        H --> C
+    end
+
     subgraph SENSING["RADAR / RIS SENSING SIDE"]
-        direction LR
-        RIS["RIS-assisted sensing path"]
-        RADAR["Infineon Radar"]
-        RUSB(["USB"])
-        PC["Radar/RIS Processing Computer<br/>Drives radar<br/>Runs real-time processing pipeline"]
-        DETECT{{"Object-detection event"}}
-        STX(["USB Serial"])
-        TX["Transceiver<br/>TX role; two LEDs"]
-
-        RADAR --- RUSB --- PC
-        RIS -.-> PC
-        PC ==> DETECT
-        DETECT --> STX --> TX
+        R["Radar / RIS"]
+        PC["Central Laptop<br/>sensing processing"]
+        STATE{{"Obstacle / safety state"}}
+        TX["NRF Transceiver<br/>TX"]
+        R --> PC --> STATE
+        STATE -->|"USB serial"| TX
     end
 
-    BLE(["BLE Coded PHY S=8<br/>State broadcast"])
+    BLE(["BLE Coded PHY S=8"])
 
-    subgraph MOBILE["JACKAL-SIDE BRIDGE"]
-        direction LR
-        RX["Transceiver<br/>RX role; one LED"]
-        SRX(["USB Serial"])
-        LOGGER["Laptop on Jackal rack<br/>Python transition logger"]
-        LAPTOP["Later: serial-to-SSH bridge"]
+    subgraph CONTROLLED["CONTROLLED CORRIDOR / JACKAL SIDE"]
+        RX["NRF Transceiver<br/>RX"]
+        JC["Jackal-side control computer"]
+        DIST{{"Jackal distance to corner<br/>source = TBD"}}
+        CMD["Operator cmd_vel"]
+        GATE["Safety gating / control arbitration"]
+        J["Jackal<br/>Controlled Robot"]
 
-        RX --- SRX --- LOGGER
-        LOGGER -.-> LAPTOP
+        RX -->|"USB serial"| JC
+        JC -->|"safety state"| GATE
+        DIST -->|"context / gating state"| GATE
+        CMD -->|"normal motion authority"| GATE
+        GATE -->|"Ethernet / ROS control interface"| J
     end
 
-    SSH(["Ethernet<br/>Persistent SSH"])
-
-    subgraph JACKALCORE["JACKAL ONBOARD COMPUTER / ROS"]
-        direction LR
-        ROSSTOP["ROS safety / stop input"]
-        JOY["Normal joystick velocity input"]
-        ARB["ROS command arbiter / mux"]
-        BASE["Jackal base controller"]
-
-        ROSSTOP ==>|"higher authority"| ARB
-        JOY --> ARB
-        ARB --> BASE
-    end
-
+    C -->|"movement"| R
     TX -.-> BLE -.-> RX
-    LAPTOP --> SSH --> ROSSTOP
 ```
 
-### Figure convention
+The connection technology still changes intentionally across the remote path: **USB/serial → BLE → USB/serial → Ethernet/ROS**. The NRF/BLE path transports compact state; it does not directly control Jackal drive hardware.
 
-| Figure element | Meaning |
-|---|---|
-| Large rectangular block | Physical device or major compute/software element |
-| Small capsule between blocks | Connection technology or interface stack |
-| Solid link | Wired/local data connectivity |
-| Dashed directional link | Wireless or logical sensing contribution |
-| Enclosure | Components belonging to the same local operating side/core |
-| Hexagonal block | Trigger/control event |
-| Thick directional arrow | Higher control authority rather than ordinary data flow |
+### Distance-gated STOP
 
-The connection technology is shown whenever the system crosses a device boundary. The end-to-end route therefore changes intentionally from **USB/serial → BLE → USB/serial → Ethernet/SSH → ROS**.
+The Jackal has only **two logical motion-control authorities**:
+
+1. normal teleoperation / `cmd_vel`;
+2. higher-priority safety STOP.
+
+Distance-to-corner is **not** a third command or control authority. It is contextual state used by the arbitration logic to decide whether the STOP authority should be enforced.
+
+```text
+conflicting-corridor unsafe ----\
+                                 > safety gating ----\
+distance to corner -------------/                    \
+                                                      > final motion authority -> Jackal
+operator cmd_vel ------------------------------------/
+```
+
+The active rule is:
+
+```text
+if conflicting_corridor_unsafe
+   AND jackal_distance_to_corner <= DISTANCE_THRESHOLD:
+    STOP overrides cmd_vel
+else:
+    normal cmd_vel remains allowed
+```
+
+Current unresolved parameters are intentionally explicit:
+
+- `DISTANCE_THRESHOLD = TBD`
+- distance-to-corner sensing / estimation mechanism = **TBD**
+
+No localization mechanism is implied until one is explicitly selected.
+
+Normal behavior follows directly: with no relevant unsafe condition, `cmd_vel` controls the Jackal; with an obstacle detected while the Jackal is still far from the corner, `cmd_vel` may continue; with an obstacle detected and the Jackal within the threshold, STOP wins; when the obstacle clears, normal `cmd_vel` may resume.
 
 ## Sensing-side assumption that must be confirmed
 
@@ -187,11 +194,7 @@ The critical external dependency is therefore narrow: **where the object-detecti
 
 ## Control and safety semantics
 
-The control rule remains:
-
-> **STOP authority has higher priority than joystick motion authority.**
-
-If the operator continues requesting motion while the Radar/RIS-derived state indicates that the conflicting corridor is unsafe, the ROS-side arbitration layer must prevent the Jackal from proceeding. When the safety state permits motion again, normal joystick control can resume according to the final experiment logic.
+The control rule is now distance-gated: **STOP remains the higher-priority authority, but it is enforced only when the conflicting corridor is unsafe and the Jackal is within the configured distance threshold from the corner.** Obstacle state and distance-to-corner are gating inputs; they are not additional motion commands.
 
 The software STOP mechanism is part of the research integration and does not replace the Jackal's physical emergency-stop hardware or normal supervised procedures. Communication-loss behavior also needs to be explicit in the final implementation: loss of BLE, serial, or SSH must not silently be interpreted as proof that the corridor is clear.
 
@@ -201,6 +204,6 @@ The architecture keeps the research contribution focused. The sensing team remai
 
 The robot is not being turned into an autonomous-navigation platform. No SLAM, autonomous route planning, or hidden-corridor perception is required on the Jackal. The intended demonstration is simply:
 
-**Radar/RIS detects the relevant condition → a compact STOP trigger crosses the communication path → the Jackal's local control layer overrides manual motion.**
+**Husky provides the moving Dummy Robot target → Radar/RIS derives the conflicting-corridor safety state → the compact state crosses the NRF/BLE path → Jackal-side arbitration combines that state with distance-to-corner context → STOP overrides manual motion only when the gated unsafe condition applies.**
 
 Detailed implementation and handoff notes are maintained in [`control-signal-path.md`](control-signal-path.md).

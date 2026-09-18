@@ -1,11 +1,11 @@
 # Control Signal Integration Plan
 
-**Date:** 2026-09-16  
+**Date:** 2026-09-17  
 **Scope:** End-to-end route of the Radar/RIS-derived STOP trigger, the exact ask from the sensing team, and the remaining implementation work on the robotics side.
 
 ## 1. Objective
 
-The goal is to convert an object-detection result from the existing Radar/RIS processing pipeline into a STOP authority on the Clearpath Jackal without expanding the project into a general autonomous-robotics system.
+The system uses a **Husky as the Dummy Robot** in the conflicting / hidden corridor and a **Jackal as the Controlled Robot** in the controlled corridor. The goal is to convert the Radar/RIS-derived conflicting-corridor state into a distance-gated STOP authority on the manually teleoperated Jackal without expanding the project into a general autonomous-robotics system.
 
 The intended route is:
 
@@ -39,7 +39,8 @@ Persistent SSH over Ethernet
 Jackal onboard ROS computer
         |
         v
-Safety-stop input / arbiter
+Safety gating / arbiter
+  receives obstacle state + distance-to-corner state + cmd_vel
         |
         v
 Jackal base controller
@@ -164,18 +165,39 @@ The SSH session should be persistent during the experiment rather than establish
 
 This SSH work is downstream context and is not part of the Transceiver/serial-logger implementation.
 
-## 7. Later deliverable — ROS control arbitration
+## 7. Later deliverable — distance-gated ROS control arbitration
+
+The Jackal still has only two logical motion-control authorities: normal teleoperation / `cmd_vel` and higher-priority safety STOP. Jackal distance-to-corner is contextual state used to gate STOP enforcement; it is **not** a third motion command.
+
+The active rule is:
+
+```text
+if conflicting_corridor_unsafe
+   AND jackal_distance_to_corner <= DISTANCE_THRESHOLD:
+    STOP overrides cmd_vel
+else:
+    normal cmd_vel remains allowed
+```
+
+`DISTANCE_THRESHOLD = TBD`. The distance-to-corner sensing / estimation mechanism is also **TBD**; this record intentionally does not select or imply a localization subsystem.
+
+Obstacle detection by itself therefore does not force an immediate stop while the Jackal is still far from the corner. The moving obstacle may clear the conflicting corridor before the Controlled Robot reaches the intersection.
+
+### Control-authority semantics
 
 The STOP input must have higher **control authority** than the joystick, but this should not be described as one ROS topic inherently having a higher priority than another. ROS topics do not provide that semantics by themselves.
 
 The intended structure is:
 
 ```text
-Normal joystick / velocity command ----\
-                                        > command arbiter / mux --> Jackal base controller
-Radar/RIS-derived STOP ----------------/
-                 higher authority
+obstacle / safety state ----\
+                             > safety gating ----\
+distance to corner ---------/                    \
+                                                  > command arbiter / mux --> Jackal
+normal cmd_vel ----------------------------------/
 ```
+
+Distance participates in the safety predicate; it does not compete with `cmd_vel` or STOP.
 
 The ROS-side implementation therefore needs an arbiter, mux, supervisor, or equivalent control layer that prevents normal velocity commands from reaching the base whenever STOP is asserted.
 
@@ -225,6 +247,8 @@ The project remains intentionally divided into local responsibilities:
 - **Sensing side:** detect the relevant object/occupancy condition and expose a compact event.
 - **Communication side:** transport that event over serial and BLE.
 - **Jackal-side bridge:** translate the received serial state into a command delivered to the Jackal computer through persistent SSH.
-- **Jackal ROS side:** locally enforce the STOP-over-joystick control rule.
+- **Husky / Dummy Robot:** provide the moving physical obstacle in the conflicting corridor; it is not part of the Jackal control path.
+- **Jackal-side control:** obtain the Jackal distance-to-corner state, combine it with received safety state and teleoperator intent, and locally enforce the distance-gated STOP-over-`cmd_vel` rule.
+- **Jackal / Controlled Robot:** execute the resulting motion command.
 
 That separation keeps the integration small and testable while preserving the main research story: the Radar/RIS sensing result directly influences a real robot's motion without requiring the robot itself to perform the hidden-corridor sensing or autonomous navigation.

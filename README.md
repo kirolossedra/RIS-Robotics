@@ -1,23 +1,25 @@
 # RIS-Robotics
 
-Integration project connecting the existing Radar/RIS sensing pipeline to a Clearpath Jackal so that a detected conflicting condition can assert a higher-authority STOP over normal joystick motion.
+Integration project connecting the existing Radar/RIS sensing pipeline to a dual-robot corridor experiment: a Clearpath Husky acts as the **Dummy Robot** in the conflicting corridor, while a Clearpath Jackal is the **Controlled Robot** in the controlled corridor.
 
 ## Current architecture
 
-The project is intentionally narrow: the sensing system produces an object-detection event, that event is converted to a serial trigger, transported over BLE using two NRF boards, received on the Jackal-side laptop, forwarded through a persistent SSH session over Ethernet to the Jackal's onboard ROS computer, and enforced locally through ROS command arbitration.
+The system now has two distinct robot roles. The **Husky = Dummy Robot**: it moves in the conflicting / hidden corridor as the physical obstacle observed by Radar/RIS. The **Jackal = Controlled Robot**: it remains manually teleoperated in the controlled corridor through `cmd_vel` and is subject to the higher-priority experimental safety STOP.
+
+The communication chain remains intentionally compact:
 
 ```text
-Radar/RIS detection
-  → serial
-  → Transceiver TX
-  → BLE Coded PHY S=8
-  → Transceiver RX
-  → serial
-  → Jackal-side laptop
-  → persistent SSH / Ethernet
-  → Jackal ROS safety input
-  → STOP-over-joystick arbitration
+Husky / Dummy Robot in conflicting corridor
+  → Radar/RIS sensing
+  → Central Laptop derives obstacle/safety state
+  → USB → NRF TX → BLE Coded PHY S=8 → NRF RX → USB
+  → Jackal-side computer
+  → Ethernet / ROS control interface
+  → safety gating + command arbitration
+  → Jackal / Controlled Robot
 ```
+
+STOP is enforced only when the conflicting corridor is unsafe **and** the Jackal is sufficiently close to the corner. Distance-to-corner is contextual gating state, not a third motion-control authority. `DISTANCE_THRESHOLD` and the distance-to-corner source/method remain **TBD**.
 
 ## Documentation
 
@@ -25,6 +27,7 @@ Radar/RIS detection
 - [`system/control-signal-path.md`](system/control-signal-path.md) — detailed control-signal journey, exact sensing-team ask, robotics-side deliverables, dependencies, and integration plan.
 - [`decision-logs/`](decision-logs/) — design decisions, including BLE transport, Jackal platform selection, and the serial-to-SSH-to-ROS control bridge.
 - [`firmware/`](firmware/) — shared TX/RX Transceiver firmware, RX serial logger, build, flashing, and smoke-test instructions.
+- [`session-logs/2026-09-17.md`](session-logs/2026-09-17.md) — chronological record of the 2026-09-17 engineering session.
 
 The software STOP path is part of the research integration and does not replace the Jackal's physical emergency stop or normal supervised laboratory safety procedures.
 
