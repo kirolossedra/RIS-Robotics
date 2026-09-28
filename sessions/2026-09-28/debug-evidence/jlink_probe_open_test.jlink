@@ -1,0 +1,5 @@
+Exec DisableAutoUpdateFW
+USB 001050670813
+ShowFWInfo
+ShowHWStatus
+Exit

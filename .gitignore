@@ -1,4 +1,7 @@
 /build/
 __pycache__/
 *.py[cod]
+# Large host-diagnostic binaries (kept locally, not for GitHub)
+*.dmp
+JLink_Windows_x86_64.exe
 

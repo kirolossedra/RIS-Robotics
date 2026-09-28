@@ -4,17 +4,8 @@ source "Kconfig.zephyr"
 
 menu "RIS Transceiver options"
 
-choice TRANSCEIVER_ROLE
-	prompt "Transceiver role"
-	default TRANSCEIVER_ROLE_RX
-
-config TRANSCEIVER_ROLE_TX
-	bool "TX (serial input to BLE advertising)"
-
-config TRANSCEIVER_ROLE_RX
-	bool "RX (BLE scanning to serial output)"
-
-endchoice
+# Single firmware image: TX/RX are runtime roles (ble-runtime-0004), so there is no
+# build-time role selection here.
 
 config TRANSCEIVER_BLINK_INTERVAL_MS
 	int "Role-identification LED blink interval in milliseconds"

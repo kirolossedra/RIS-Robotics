@@ -1,5 +1,7 @@
-# DL-003 — Jackal-Side Control Bridge: Serial → Persistent SSH → ROS Arbitration
+# Decision: Jackal Control Bridge (Serial → SSH → ROS)
 
+**ID:** `robot-ros-0001`
+**Previous ID:** `DL-003`
 **Status:** Accepted for the initial implementation  
 **Date:** 2026-09-17  
 **Scope:** How a STOP state received from the BLE receiver reaches and overrides normal motion control on the Clearpath Jackal

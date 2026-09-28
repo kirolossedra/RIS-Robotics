@@ -1,5 +1,7 @@
-# DL-001 — Radar/RIS-to-Robot Communication: Wi-Fi to BLE
+# Decision: Radar/RIS-to-Robot Communication over BLE
 
+**ID:** `ble-runtime-0001`
+**Previous ID:** `DL-001`
 **Status:** Accepted  
 **Date:** 2026-09-15; implementation detail updated 2026-09-16  
 **Scope:** Communication path carrying the Radar/RIS obstacle state to the mobile robot
@@ -92,7 +94,7 @@ The receiver feeds the Jackal-side laptop over USB serial. Under the current rob
 
 The priority rule is not implemented by making a ROS topic intrinsically "higher priority." A ROS-side arbiter/mux/supervisor must enforce STOP authority over normal joystick velocity commands.
 
-The detailed robot-side decision is recorded separately in **DL-003**.
+The detailed robot-side decision is recorded separately in `robot-ros-0001`.
 
 ## Reliability consequence
 

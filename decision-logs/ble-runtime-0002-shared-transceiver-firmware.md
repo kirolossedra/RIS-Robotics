@@ -1,8 +1,12 @@
-# DL-004 — Shared NRF Transceiver Firmware
+# Decision: Shared NRF Transceiver Firmware
 
-**Status:** Accepted  
-**Date:** 2026-09-16  
+**ID:** `ble-runtime-0002`
+**Previous ID:** `DL-004`
+**Status:** Superseded by `ble-runtime-0004` (2026-09-28).
+**Date:** 2026-09-16
 **Scope:** Firmware organization, roles, radio PHY, and state protocol for the two NRF boards
+
+> **Historical note:** This record is preserved unchanged below for traceability. Its "build-time roles" and "LE Coded PHY only" decisions are superseded: the Transceiver is now a single firmware image with runtime TX/RX roles (Button 2) and LE 1M + Coded S=8 PHY modes (Button 1). See [ble-runtime-0004](ble-runtime-0004-transceiver-runtime-roles-single-image.md). The protocol facts (latched OBS/CLR, RX dedup, startup-CLR suppression, UUID, version 1, TX starts CLEAR) remain valid.
 
 ## Decision
 

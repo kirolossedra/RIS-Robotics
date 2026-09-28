@@ -1,0 +1,27 @@
+﻿SEGGER cleanup started: 2026-09-28T10:52:36.1552937-04:00
+Registered J-Link V9.22 uninstaller was not found.
+Deleting confirmed SEGGER/J-Link driver package: oem17.inf
+Microsoft PnP Utility
+
+Ignoring /force when used with /uninstall to delete driver package.
+Driver package uninstalled.
+Driver package deleted successfully.
+
+pnputil exit code for oem17.inf: 0
+Deleting confirmed SEGGER/J-Link driver package: oem26.inf
+Microsoft PnP Utility
+
+Ignoring /force when used with /uninstall to delete driver package.
+Driver package uninstalled.
+Driver package deleted successfully.
+
+pnputil exit code for oem26.inf: 0
+Deleting confirmed SEGGER/J-Link driver package: oem44.inf
+Microsoft PnP Utility
+
+Ignoring /force when used with /uninstall to delete driver package.
+Driver package uninstalled.
+Driver package deleted successfully.
+
+pnputil exit code for oem44.inf: 0
+SEGGER cleanup completed: 2026-09-28T10:52:51.0398677-04:00

@@ -12,12 +12,14 @@ The communication chain remains intentionally compact:
 Husky / Dummy Robot in conflicting corridor
   → Radar/RIS sensing
   → Central Laptop derives obstacle/safety state
-  → USB → NRF TX → BLE Coded PHY S=8 → NRF RX → USB
+  → USB → NRF Transceiver (TX role) → BLE (Coded S=8 default, 1M switchable) → NRF Transceiver (RX role) → USB
   → Jackal-side computer
   → Ethernet / ROS control interface
   → safety gating + command arbitration
   → Jackal / Controlled Robot
 ```
+
+Both NRF boards run the same Transceiver firmware image: TX and RX are runtime roles switched on-device with Button 2 (every board boots as TX), and Button 1 switches the BLE PHY between Coded S=8 and LE 1M. Details are in [`firmware/`](firmware/) and [`ble-runtime-0004`](decision-logs/ble-runtime-0004-transceiver-runtime-roles-single-image.md).
 
 STOP is enforced only when the conflicting corridor is unsafe **and** the Jackal is sufficiently close to the corner. Distance-to-corner is contextual gating state, not a third motion-control authority. `DISTANCE_THRESHOLD` and the distance-to-corner source/method remain **TBD**.
 
@@ -26,7 +28,7 @@ STOP is enforced only when the conflicting corridor is unsafe **and** the Jackal
 - [`system/system.md`](system/system.md) — full-system architecture, responsibility boundaries, current assumptions, status, and bigger picture.
 - [`system/control-signal-path.md`](system/control-signal-path.md) — detailed control-signal journey, exact sensing-team ask, robotics-side deliverables, dependencies, and integration plan.
 - [`decision-logs/`](decision-logs/) — design decisions, including BLE transport, Jackal platform selection, and the serial-to-SSH-to-ROS control bridge.
-- [`firmware/`](firmware/) — shared TX/RX Transceiver firmware, RX serial logger, build, flashing, and smoke-test instructions.
+- [`firmware/`](firmware/) — single-image Transceiver firmware with runtime TX/RX roles, RX serial logger, build, flashing, and smoke-test instructions.
 - [`session-logs/2026-09-17.md`](session-logs/2026-09-17.md) — chronological record of the 2026-09-17 engineering session.
 
 The software STOP path is part of the research integration and does not replace the Jackal's physical emergency stop or normal supervised laboratory safety procedures.

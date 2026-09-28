@@ -1,5 +1,7 @@
-# DL-006 — Husky Power and Troubleshooting Conventions
+# Decision: Husky Power and Troubleshooting Conventions
 
+**ID:** `robot-hardware-0001`
+**Previous ID:** `DL-006`
 **Status:** Accepted  
 **Date:** 2026-09-17  
 **Scope:** Husky hardware troubleshooting and documentation
@@ -39,4 +41,4 @@ Preserving the original photos with each incident keeps the physical wiring evid
 ## Related records
 
 - `robotics/husky/TS-001-onboard-computer-no-power-reversed-polarity.md` — reversed-polarity incident and resolution.
-- `DL-005-husky-radar-obstacle-footprint.md` — Husky's initial experimental role as a simple physical Radar obstacle/target for data collection.
+- `robot-runtime-0002-husky-radar-obstacle-footprint.md` — Husky's initial experimental role as a simple physical Radar obstacle/target for data collection.

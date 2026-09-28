@@ -1,5 +1,7 @@
-# DL-005 — Husky Dummy Robot and Radar/RIS Acquisition Configuration
+# Decision: Husky Dummy Robot and Radar Acquisition Configuration
 
+**ID:** `robot-runtime-0002`
+**Previous ID:** `DL-005`
 **Status:** Accepted  
 **Date:** 2026-09-17  
 **Scope:** Husky experimental role and robot-detectability configuration
@@ -37,7 +39,7 @@ Those robotics-control concerns belong to later troubleshooting and integration 
 
 ## Relationship to the Jackal decision
 
-DL-002 now records the dual-robot architecture. The roles are complementary rather than mutually exclusive:
+`robot-runtime-0001` now records the dual-robot architecture. The roles are complementary rather than mutually exclusive:
 
 - **Husky = Dummy Robot** in the conflicting corridor.
 - **Jackal = Controlled Robot** in the controlled corridor.

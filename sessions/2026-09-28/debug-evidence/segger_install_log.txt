@@ -1,0 +1,7 @@
+﻿SEGGER install started: 2026-09-28T10:58:06.2421921-04:00
+Removing orphaned J-Link driver uninstall record: Windows Driver Package - SEGGER (JLinkCDC) Ports  (06/06/2019 1.34.0.44950)
+Removing orphaned J-Link driver uninstall record: Windows Driver Package - Segger (jlink) USB  (08/02/2018 2.70.08.0)
+Removing orphaned J-Link driver uninstall record: Windows Driver Package - SEGGER Microcontroller GmbH (WinUSB) USBDevice  (06/14/2019 3.00.00.000)
+Launching signed SEGGER installer silently: P:\Github\RIS-Robotics\JLink_Windows_x86_64.exe /S
+Installer exit code: 0
+SEGGER install completed: 2026-09-28T10:58:17.0110927-04:00

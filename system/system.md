@@ -25,15 +25,15 @@ flowchart LR
         R["Radar / RIS"]
         PC["Central Laptop<br/>sensing processing"]
         STATE{{"Obstacle / safety state"}}
-        TX["NRF Transceiver<br/>TX"]
+        TX["NRF Transceiver<br/>(TX role, same image)"]
         R --> PC --> STATE
         STATE -->|"USB serial"| TX
     end
 
-    BLE(["BLE Coded PHY S=8"])
+    BLE(["BLE<br/>(Coded S=8 default, 1M switchable)"])
 
     subgraph CONTROLLED["CONTROLLED CORRIDOR / JACKAL SIDE"]
-        RX["NRF Transceiver<br/>RX"]
+        RX["NRF Transceiver<br/>(RX role, same image)"]
         JC["Jackal-side control computer"]
         DIST{{"Jackal distance to corner<br/>source = TBD"}}
         CMD["Operator cmd_vel"]
@@ -127,9 +127,11 @@ The robotics integration does not require raw Radar/RIS frames to leave their co
 
 Two NRF boards are already available. No additional hardware is currently required for the BLE link.
 
-The two boards run one shared **Transceiver** application in different build-time roles. TX accepts newline-delimited `OBS` and `CLR` commands and latches the state until the opposite command arrives. It continuously advertises the current state using non-connectable extended advertising on BLE Coded PHY with an explicit S=8 coding request. RX scans on coded PHY only, suppresses repeated advertisements of the same state, and emits one serial `OBS` followed by one serial `CLR` per obstacle episode.
+Both physical transceiver boards use the same firmware image. TX and RX are runtime roles selected on-device using the role-selection button (Button 2): every board boots as TX on LE Coded PHY S=8, and either board can be switched to RX (or back) at runtime with no reboot and no reflash. Button 1 independently switches the BLE PHY between Coded S=8 and LE 1M in either role.
 
-TX blinks the board-defined `led0` and `led1`; RX blinks only `led0`. A Python logger on the RX-side computer timestamps each serial transition in UTC and prints/persists it as JSON Lines.
+In the TX role the board accepts newline-delimited `OBS` and `CLR` commands and latches the state until the opposite command arrives. It continuously advertises the current state using non-connectable extended advertising, on Coded PHY with an explicit S=8 coding request by default. In the RX role the board scans on the selected PHY, suppresses repeated advertisements of the same state, and emits one serial `OBS` followed by one serial `CLR` per obstacle episode.
+
+While in the TX role the board blinks the board-defined `led0` and `led1`; while in the RX role it blinks only `led0`, so the current runtime role is always visible. A separate `led2` shows the PHY (`on` = Coded S=8, `off` = 1M). A Python logger on the RX-side computer timestamps each serial transition in UTC and prints/persists it as JSON Lines.
 
 The current implementation boundary ends at this logger. Once the standalone link is operational on hardware, the remaining sensing-side dependency is connecting the real pipeline event to the TX serial input.
 
@@ -184,7 +186,7 @@ This ROS work can be developed independently using the Jackal without requiring 
 | Radar/RIS real-time processing | Sensing team | Existing system | Existing sensing setup |
 | Expose object-detection event | Sensing team + integration point | **Needs confirmation** | Accessible event in their pipeline |
 | Detection event → serial trigger | Integration boundary | **Pending pipeline access** | Serial output from sensing computer |
-| Shared Transceiver TX → BLE S=8 → RX | Robotics side | Implemented in repository; hardware smoke test required | Two NRF boards already available |
+| Shared single-image Transceiver (runtime TX/RX + S=8/1M) | Robotics side | Implemented in repository; hardware smoke test required | Two NRF boards already available |
 | NRF RX → laptop serial logger | Robotics side | Implemented in repository | Existing USB connection; Python + pyserial |
 | Laptop → persistent SSH → Jackal | Robotics side | Pending | Ethernet link; no ROS required on laptop |
 | ROS safety input + joystick arbitration | Robotics side | Pending; more involved | Jackal access; ROS-side control work |

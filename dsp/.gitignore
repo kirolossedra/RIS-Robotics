@@ -1,0 +1,13 @@
+# Virtual environments
+.venv/
+.venv_tf/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Optional: trained models
+*.keras

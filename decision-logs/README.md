@@ -2,14 +2,48 @@
 
 This directory records significant design decisions for the RIS Robotics experiment.
 
-| ID | Decision | Status |
-|---|---|---|
-| [DL-001](DL-001-communication-wifi-to-ble.md) | Use BLE instead of Wi-Fi for the Radar/RIS-to-robot safety signal | Accepted |
-| [DL-002](DL-002-robot-platform-husky-to-jackal.md) | Dual-robot architecture: Husky = Dummy Robot; Jackal = Controlled Robot | Accepted — current architecture |
-| [DL-003](DL-003-jackal-control-serial-ssh-ros.md) | Bridge safety state into Jackal control and enforce distance-gated STOP over `cmd_vel` | Accepted for initial implementation |
-| [DL-004](DL-004-shared-transceiver-firmware.md) | Use one shared Transceiver firmware with TX/RX roles, coded S=8 advertising, and latched `OBS`/`CLR` state | Accepted |
-| [DL-005](DL-005-husky-radar-obstacle-footprint.md) | Use Husky as the Dummy Robot and preserve sensing height while augmenting the target for detectability | Accepted |
-| [DL-006](DL-006-husky-power-troubleshooting-conventions.md) | Standardize Husky computer power, bottom-up troubleshooting, incident separation, and preservation of original photo evidence | Accepted |
+## Naming convention
+
+Every decision file follows the RIS decision identity format:
+
+```text
+<subsystem>-<environment>-<NNNN>-<decision-name>.md
+```
+
+- **Subsystem** comes first: the actual subsystem the decision belongs to (e.g. `ble`, `robot`), taken from repository evidence. No abbreviations or aliases may be invented.
+- **Environment** comes second: the context in which the decision primarily applies (e.g. `runtime`, `ros`, `hardware`), using only terminology already supported by the repository.
+- **Four-digit sequence** comes third (e.g. `0001`). The counter is local to that exact subsystem-environment combination: each pair starts its own sequence at `0001`. There is no repository-global counter.
+- **Descriptive kebab-case name** comes last (e.g. `role-selection`). It explains the decision and is not part of the identity sequence.
+- No additional taxonomy layer may be inserted into the filename without an explicit decision, and no acronym or category may be invented merely to make a filename fit.
+- Ambiguous classification must be surfaced rather than guessed.
+
+Examples (naming syntax only, not new records):
+
+```text
+ble-runtime-0001-role-selection.md
+ble-runtime-0002-phy-switching.md
+
+robot-ros-0001-high-priority-stop-command.md
+robot-ros-0002-distance-to-corner-gating.md
+
+robot-runtime-0001-stop-clear-state-handling.md
+robot-hardware-0001-jackal-platform-selection.md
+```
+
+Each record carries its authoritative `ID` in its heading and preserves its legacy `DL-###` identifier as `Previous ID` metadata. Git history plus that metadata keeps the migration reconstructable.
+
+## Index
+
+| ID | Decision | State | Previous ID |
+|---|---|---|---|
+| `ble-runtime-0001` | [Wi-Fi to BLE communication](ble-runtime-0001-wifi-to-ble-communication.md) | Accepted | `DL-001` |
+| `ble-runtime-0002` | [Shared Transceiver firmware](ble-runtime-0002-shared-transceiver-firmware.md) | Superseded by `ble-runtime-0004` | `DL-004` |
+| `ble-runtime-0003` | [Transceiver BLE PHY modes with Button switching](ble-runtime-0003-transceiver-phy-modes-button-switching.md) | Superseded by `ble-runtime-0004` (PHY content retained) | `DL-007` |
+| `ble-runtime-0004` | [Single-image Transceiver with runtime roles](ble-runtime-0004-transceiver-runtime-roles-single-image.md) | Accepted — current architecture | `DL-008` |
+| `robot-runtime-0001` | [Dual-robot architecture](robot-runtime-0001-dual-robot-architecture.md) | Accepted — current architecture | `DL-002` |
+| `robot-runtime-0002` | [Husky Dummy Robot and Radar acquisition](robot-runtime-0002-husky-radar-obstacle-footprint.md) | Accepted | `DL-005` |
+| `robot-ros-0001` | [Jackal control bridge (serial → SSH → ROS)](robot-ros-0001-jackal-control-serial-ssh-ros.md) | Accepted for the initial implementation | `DL-003` |
+| `robot-hardware-0001` | [Husky power and troubleshooting conventions](robot-hardware-0001-husky-power-troubleshooting-conventions.md) | Accepted | `DL-006` |
 
 ## Experiment context
 

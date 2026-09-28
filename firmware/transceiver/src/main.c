@@ -1,8 +1,31 @@
 /*
- * Shared RIS Transceiver firmware.
+ * RIS Transceiver firmware — ONE image, runtime TX/RX roles (ble-runtime-0004).
  *
- * TX: newline-delimited OBS/CLR on the board console -> repeated BLE state.
- * RX: BLE state transitions -> newline-delimited OBS/CLR on the board console.
+ * The same binary performs either side of the OBS/CLR protocol:
+ * - TX: newline-delimited OBS/CLR on the board console -> latched state,
+ *   continuously broadcast with non-connectable BLE extended advertising.
+ * - RX: BLE state transitions -> newline-delimited OBS/CLR on the board
+ *   console, with duplicate suppression (first OBS, then first CLR).
+ *
+ * Runtime mode (see protocol.h):
+ * - Button 1 (board alias sw0) toggles the BLE PHY: LE Coded S=8 <-> LE 1M.
+ * - Button 2 (board alias sw1) toggles the operating role: TX <-> RX.
+ * - Role and PHY are independent: switching one preserves the other.
+ * - Boot default is TX + Coded S=8. No role persistence (no NVS/settings).
+ *
+ * Switching never reboots and never reflashes. TX->RX stops advertising,
+ * drops partial UART input, resets the RX dedup epoch, and starts scanning
+ * on the current PHY. RX->TX stops scanning, clears RX transient state,
+ * re-initializes the TX latch to CLEAR, flushes stale UART bytes, and
+ * starts advertising on the current PHY. The requested role becomes the
+ * active role only after its transport starts successfully; on failure the
+ * firmware falls back to the previous side when possible, and the role LEDs
+ * never show a normal TX/RX pattern unless that role's transport is running.
+ *
+ * LEDs (board aliases): TX blinks led0+led1, RX blinks led0 (continuous
+ * role indication). led2 shows the PHY mode: on = Coded S=8, off = 1M.
+ *
+ * Pure protocol/mode logic lives in protocol.h so host-side tests reuse it.
  */
 
 #include <errno.h>
@@ -17,22 +40,44 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
+#include <zephyr/sys/atomic.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/sys/util.h>
+
+#include "protocol.h"
 
 #define LED0_NODE DT_ALIAS(led0)
 #define LED1_NODE DT_ALIAS(led1)
+#define LED2_NODE DT_ALIAS(led2)
+#define SW0_NODE  DT_ALIAS(sw0)
+#define SW1_NODE  DT_ALIAS(sw1)
 
 #if !DT_NODE_HAS_STATUS(LED0_NODE, okay)
 #error "The selected board must provide the led0 devicetree alias"
 #endif
 
-#if defined(CONFIG_TRANSCEIVER_ROLE_TX) && !DT_NODE_HAS_STATUS(LED1_NODE, okay)
-#error "The TX role requires the board-provided led1 devicetree alias"
+#if !DT_NODE_HAS_STATUS(LED1_NODE, okay)
+#error "The selected board must provide the led1 devicetree alias"
 #endif
 
-#define STATE_CLEAR    0x00
-#define STATE_OBSTACLE 0x01
+#if !DT_NODE_HAS_STATUS(LED2_NODE, okay)
+#error "The selected board must provide the led2 devicetree alias for PHY indication"
+#endif
+
+#if !DT_NODE_HAS_STATUS(SW0_NODE, okay)
+#error "The selected board must provide the sw0 devicetree alias for PHY switching"
+#endif
+
+#if !DT_NODE_HAS_STATUS(SW1_NODE, okay)
+#error "The selected board must provide the sw1 devicetree alias for role switching"
+#endif
+
+#define STATE_CLEAR    TRANSCEIVER_STATE_CLEAR
+#define STATE_OBSTACLE TRANSCEIVER_STATE_OBSTACLE
 #define PROTOCOL_VERSION 0x01
+
+/* Button debounce interval: edges closer than this are one press. */
+#define BUTTON_DEBOUNCE_MS 200
 
 /*
  * Service Data AD value: 7bb4f91d-521f-4ee6-a9c8-43dca4bb6e11 in BLE
@@ -45,50 +90,179 @@ static uint8_t service_data[18] = {
 };
 
 static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
-#if defined(CONFIG_TRANSCEIVER_ROLE_TX)
 static const struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET(LED1_NODE, gpios);
-#endif
+static const struct gpio_dt_spec phy_led = GPIO_DT_SPEC_GET(LED2_NODE, gpios);
+static const struct gpio_dt_spec phy_button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
+static const struct gpio_dt_spec role_button = GPIO_DT_SPEC_GET(SW1_NODE, gpios);
 
 static const struct device *const console = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 
+/* Runtime mode. Boot default is TX + Coded S=8 (protocol.h). */
+static struct tr_mode mode = {
+	.role = TR_BOOT_ROLE,
+	.phy = TR_BOOT_PHY,
+};
+
+/*
+ * True while the ACTIVE role's BLE transport is running. LEDs show a role
+ * pattern only when this is true, so they always reflect the actually
+ * active role and never a merely requested one.
+ */
+static bool transport_active;
+
+/* TX runtime state. */
+static uint8_t tx_state = STATE_CLEAR;
+static char uart_line[8];
+static size_t uart_len;
+
+/* RX runtime state. */
+static int8_t received_state = TRANSCEIVER_RX_UNKNOWN;
+
+static struct bt_le_ext_adv *advertiser;
+
+static struct gpio_callback phy_button_cb;
+static struct gpio_callback role_button_cb;
+static atomic_t phy_switch_request = ATOMIC_INIT(0);
+static atomic_t role_switch_request = ATOMIC_INIT(0);
+static int64_t last_phy_button_ms;
+static int64_t last_role_button_ms;
+
 static int leds_init(void)
 {
+	const struct gpio_dt_spec *leds[] = { &led0, &led1, &phy_led };
+	size_t i;
 	int err;
 
-	if (!gpio_is_ready_dt(&led0)) {
-		return -ENODEV;
+	for (i = 0; i < ARRAY_SIZE(leds); i++) {
+		if (!gpio_is_ready_dt(leds[i])) {
+			return -ENODEV;
+		}
+		err = gpio_pin_configure_dt(leds[i], GPIO_OUTPUT_INACTIVE);
+		if (err) {
+			return err;
+		}
 	}
-
-	err = gpio_pin_configure_dt(&led0, GPIO_OUTPUT_INACTIVE);
-	if (err) {
-		return err;
-	}
-
-#if defined(CONFIG_TRANSCEIVER_ROLE_TX)
-	if (!gpio_is_ready_dt(&led1)) {
-		return -ENODEV;
-	}
-
-	err = gpio_pin_configure_dt(&led1, GPIO_OUTPUT_INACTIVE);
-	if (err) {
-		return err;
-	}
-#endif
 
 	return 0;
 }
 
+/* Continuous role indication: TX blinks two LEDs, RX blinks one.
+ * Suspended while no role transport is running (transition failure). */
 static void leds_toggle(void)
 {
+	if (!transport_active) {
+		return;
+	}
 	(void)gpio_pin_toggle_dt(&led0);
-#if defined(CONFIG_TRANSCEIVER_ROLE_TX)
-	(void)gpio_pin_toggle_dt(&led1);
-#endif
+	if (mode.role == TR_ROLE_TX) {
+		(void)gpio_pin_toggle_dt(&led1);
+	}
 }
 
-#if defined(CONFIG_TRANSCEIVER_ROLE_TX)
+/* PHY indicator: led2 on = Coded S=8, off = 1M. Never touches role LEDs. */
+static void phy_indicator_update(void)
+{
+	(void)gpio_pin_set_dt(&phy_led,
+			      (mode.phy == TR_PHY_CODED_S8) ? 1 : 0);
+}
 
-static struct bt_le_ext_adv *advertiser;
+static void phy_button_isr(const struct device *dev, struct gpio_callback *cb,
+			   uint32_t pins)
+{
+	int64_t now;
+
+	ARG_UNUSED(dev);
+	ARG_UNUSED(cb);
+	ARG_UNUSED(pins);
+
+	now = k_uptime_get();
+	if (now - last_phy_button_ms < BUTTON_DEBOUNCE_MS) {
+		return;
+	}
+	last_phy_button_ms = now;
+	atomic_set(&phy_switch_request, 1);
+}
+
+static void role_button_isr(const struct device *dev, struct gpio_callback *cb,
+			    uint32_t pins)
+{
+	int64_t now;
+
+	ARG_UNUSED(dev);
+	ARG_UNUSED(cb);
+	ARG_UNUSED(pins);
+
+	now = k_uptime_get();
+	if (now - last_role_button_ms < BUTTON_DEBOUNCE_MS) {
+		return;
+	}
+	last_role_button_ms = now;
+	atomic_set(&role_switch_request, 1);
+}
+
+static int button_init(const struct gpio_dt_spec *button,
+		       struct gpio_callback *cb,
+		       gpio_callback_handler_t handler)
+{
+	int err;
+
+	if (!gpio_is_ready_dt(button)) {
+		return -ENODEV;
+	}
+
+	err = gpio_pin_configure_dt(button, GPIO_INPUT);
+	if (err) {
+		return err;
+	}
+
+	err = gpio_pin_interrupt_configure_dt(button, GPIO_INT_EDGE_TO_ACTIVE);
+	if (err) {
+		return err;
+	}
+
+	gpio_init_callback(cb, handler, BIT(button->pin));
+
+	return gpio_add_callback(button->port, cb);
+}
+
+static int buttons_init(void)
+{
+	int err;
+
+	err = button_init(&phy_button, &phy_button_cb, phy_button_isr);
+	if (err) {
+		return err;
+	}
+
+	return button_init(&role_button, &role_button_cb, role_button_isr);
+}
+
+/* Test-and-clear for the ISR-raised requests. */
+static bool phy_switch_poll(void)
+{
+	return atomic_cas(&phy_switch_request, 1, 0);
+}
+
+static bool role_switch_poll(void)
+{
+	return atomic_cas(&role_switch_request, 1, 0);
+}
+
+/* Coded S=8 advertising: explicit S=8 coding requirement (established). */
+static const struct bt_le_adv_param adv_params_coded = BT_LE_ADV_PARAM_INIT(
+	BT_LE_ADV_OPT_EXT_ADV |
+	BT_LE_ADV_OPT_CODED |
+	BT_LE_ADV_OPT_REQUIRE_S8_CODING,
+	BT_GAP_ADV_FAST_INT_MIN_2,
+	BT_GAP_ADV_FAST_INT_MAX_2,
+	NULL);
+
+/* 1M advertising: same extended-advertising shape, default 1M PHY. */
+static const struct bt_le_adv_param adv_params_1m = BT_LE_ADV_PARAM_INIT(
+	BT_LE_ADV_OPT_EXT_ADV,
+	BT_GAP_ADV_FAST_INT_MIN_2,
+	BT_GAP_ADV_FAST_INT_MAX_2,
+	NULL);
 
 static int advertise_state(uint8_t state)
 {
@@ -100,23 +274,20 @@ static int advertise_state(uint8_t state)
 	return bt_le_ext_adv_set_data(advertiser, ad, ARRAY_SIZE(ad), NULL, 0);
 }
 
-static int tx_ble_start(void)
+static int tx_transport_start(uint8_t state)
 {
-	const struct bt_le_adv_param params = BT_LE_ADV_PARAM_INIT(
-		BT_LE_ADV_OPT_EXT_ADV |
-		BT_LE_ADV_OPT_CODED |
-		BT_LE_ADV_OPT_REQUIRE_S8_CODING,
-		BT_GAP_ADV_FAST_INT_MIN_2,
-		BT_GAP_ADV_FAST_INT_MAX_2,
-		NULL);
+	const struct bt_le_adv_param *params;
 	int err;
 
-	err = bt_le_ext_adv_create(&params, NULL, &advertiser);
+	params = (mode.phy == TR_PHY_1M) ? &adv_params_1m : &adv_params_coded;
+
+	err = bt_le_ext_adv_create(params, NULL, &advertiser);
 	if (err) {
+		advertiser = NULL;
 		return err;
 	}
 
-	err = advertise_state(STATE_CLEAR);
+	err = advertise_state(state);
 	if (err) {
 		return err;
 	}
@@ -124,56 +295,30 @@ static int tx_ble_start(void)
 	return bt_le_ext_adv_start(advertiser, BT_LE_EXT_ADV_START_DEFAULT);
 }
 
-static void tx_run(void)
+static void tx_transport_stop(void)
 {
-	char line[8];
-	size_t length = 0;
-	uint8_t state = STATE_CLEAR;
-	int64_t next_blink = k_uptime_get() + CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
-
-	for (;;) {
-		uint8_t byte;
-		int err = uart_poll_in(console, &byte);
-
-		if (err == 0) {
-			if (byte == '\r' || byte == '\n') {
-				if (length > 0) {
-					line[length] = '\0';
-					uint8_t requested = state;
-
-					if (strcmp(line, "OBS") == 0) {
-						requested = STATE_OBSTACLE;
-					} else if (strcmp(line, "CLR") == 0) {
-						requested = STATE_CLEAR;
-					}
-
-					if (requested != state && advertise_state(requested) == 0) {
-						state = requested;
-					}
-					length = 0;
-				}
-			} else if (length < sizeof(line) - 1) {
-				line[length++] = (char)byte;
-			} else {
-				length = 0;
-			}
-		}
-
-		if (k_uptime_get() >= next_blink) {
-			leds_toggle();
-			next_blink = k_uptime_get() + CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
-		}
-
-		k_sleep(K_MSEC(5));
+	if (advertiser != NULL) {
+		(void)bt_le_ext_adv_stop(advertiser);
+		(void)bt_le_ext_adv_delete(advertiser);
+		advertiser = NULL;
 	}
 }
 
-#else /* CONFIG_TRANSCEIVER_ROLE_RX */
+/* Drain stale bytes so pre-switch input can never become a TX command. */
+static void uart_flush(void)
+{
+	uint8_t byte;
 
-static int8_t received_state = -1;
+	while (uart_poll_in(console, &byte) == 0) {
+		;
+	}
+	uart_len = 0;
+}
 
 static bool parse_ad(struct bt_data *data, void *user_data)
 {
+	uint8_t state;
+
 	ARG_UNUSED(user_data);
 
 	if (data->type != BT_DATA_SVC_DATA128 || data->data_len != sizeof(service_data)) {
@@ -185,14 +330,17 @@ static bool parse_ad(struct bt_data *data, void *user_data)
 		return true;
 	}
 
-	uint8_t state = data->data[17];
+	state = data->data[17];
 
-	if (state == STATE_OBSTACLE && received_state != STATE_OBSTACLE) {
-		received_state = STATE_OBSTACLE;
+	switch (rx_dedup_update(&received_state, state)) {
+	case RX_EMIT_OBS:
 		printk("OBS\n");
-	} else if (state == STATE_CLEAR && received_state == STATE_OBSTACLE) {
-		received_state = STATE_CLEAR;
+		break;
+	case RX_EMIT_CLR:
 		printk("CLR\n");
+		break;
+	default:
+		break;
 	}
 
 	return false;
@@ -209,28 +357,208 @@ static struct bt_le_scan_cb scan_callbacks = {
 	.recv = scan_received,
 };
 
-static int rx_ble_start(void)
+/* 1M mode scans 1M only; coded mode scans coded only (established). */
+static uint8_t rx_scan_options(void)
+{
+	if (mode.phy == TR_PHY_1M) {
+		return 0;
+	}
+	return BT_LE_SCAN_OPT_CODED | BT_LE_SCAN_OPT_NO_1M;
+}
+
+static int rx_transport_start(void)
 {
 	const struct bt_le_scan_param params = {
 		.type = BT_LE_SCAN_TYPE_PASSIVE,
-		.options = BT_LE_SCAN_OPT_CODED | BT_LE_SCAN_OPT_NO_1M,
+		.options = rx_scan_options(),
 		.interval = BT_GAP_SCAN_FAST_INTERVAL,
 		.window = BT_GAP_SCAN_FAST_WINDOW,
 	};
 
-	bt_le_scan_cb_register(&scan_callbacks);
 	return bt_le_scan_start(&params, NULL);
 }
 
-static void rx_run(void)
+static void rx_transport_stop(void)
 {
-	for (;;) {
-		leds_toggle();
-		k_sleep(K_MSEC(CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS));
+	(void)bt_le_scan_stop();
+}
+
+/*
+ * Enter RX: stop advertising, drop partial UART input, start a fresh RX
+ * observation epoch on the current PHY. The role commits to RX only if
+ * scanning starts; otherwise the previous TX side is restored when
+ * possible. PHY is preserved.
+ */
+static int switch_to_rx(void)
+{
+	int err;
+
+	tx_transport_stop();
+	uart_len = 0;
+	received_state = TRANSCEIVER_RX_UNKNOWN;
+
+	err = rx_transport_start();
+	if (err) {
+		printk("ERR scan-start %d\n", err);
+		if (tx_transport_start(tx_state) == 0) {
+			transport_active = true;
+			return err;
+		}
+		printk("ERR adv-restore\n");
+		/* Neither side runs: role LEDs go dark instead of showing
+		 * a normal TX pattern. A later button press retries. */
+		transport_active = false;
+		(void)gpio_pin_set_dt(&led0, 0);
+		(void)gpio_pin_set_dt(&led1, 0);
+		return err;
+	}
+
+	mode.role = TR_ROLE_RX;
+	transport_active = true;
+	(void)gpio_pin_set_dt(&led1, 0);
+	return 0;
+}
+
+/*
+ * Enter TX: stop scanning, clear RX transient state, re-initialize the TX
+ * latch to CLEAR, flush stale UART bytes, advertise on the current PHY.
+ * The role commits to TX only if advertising starts; otherwise the
+ * previous RX side is restored when possible. PHY is preserved.
+ */
+static int switch_to_tx(void)
+{
+	int err;
+
+	rx_transport_stop();
+	received_state = TRANSCEIVER_RX_UNKNOWN;
+	tx_state = STATE_CLEAR;
+	uart_flush();
+
+	err = tx_transport_start(tx_state);
+	if (err) {
+		printk("ERR adv-start %d\n", err);
+		received_state = TRANSCEIVER_RX_UNKNOWN;
+		if (rx_transport_start() == 0) {
+			transport_active = true;
+			return err;
+		}
+		printk("ERR scan-restore\n");
+		/* Neither side runs: role LEDs go dark instead of showing
+		 * a normal RX pattern. A later button press retries. */
+		transport_active = false;
+		(void)gpio_pin_set_dt(&led0, 0);
+		(void)gpio_pin_set_dt(&led1, 0);
+		return err;
+	}
+
+	mode.role = TR_ROLE_TX;
+	transport_active = true;
+	return 0;
+}
+
+/* PHY switch on the current role. Role is preserved. */
+static void switch_phy(void)
+{
+	enum tr_phy prev = mode.phy;
+
+	tr_press_phy_button(&mode);
+	if (mode.role == TR_ROLE_TX) {
+		tx_transport_stop();
+		if (tx_transport_start(tx_state) != 0) {
+			/* Best effort: fall back to the previous PHY. */
+			mode.phy = prev;
+			if (tx_transport_start(tx_state) != 0) {
+				printk("ERR adv-restart\n");
+			}
+		}
+	} else {
+		rx_transport_stop();
+		/* New PHY = new observation epoch; avoids stale state. */
+		received_state = TRANSCEIVER_RX_UNKNOWN;
+		if (rx_transport_start() != 0) {
+			printk("ERR scan-restart\n");
+		}
+	}
+	phy_indicator_update();
+}
+
+static void role_switch_requested(void)
+{
+	if (mode.role == TR_ROLE_TX) {
+		(void)switch_to_rx();
+	} else {
+		(void)switch_to_tx();
 	}
 }
 
-#endif /* CONFIG_TRANSCEIVER_ROLE_TX */
+static void tx_poll_uart(void)
+{
+	uint8_t byte;
+	int err = uart_poll_in(console, &byte);
+
+	if (err != 0) {
+		return;
+	}
+
+	if (byte == '\r' || byte == '\n') {
+		if (uart_len > 0) {
+			uint8_t requested = tx_state;
+
+			uart_line[uart_len] = '\0';
+			switch (tx_parse_command(uart_line)) {
+			case TX_CMD_SET_OBS:
+				requested = STATE_OBSTACLE;
+				break;
+			case TX_CMD_SET_CLR:
+				requested = STATE_CLEAR;
+				break;
+			default:
+				/* Invalid input: ignore, keep state. */
+				break;
+			}
+
+			if (requested != tx_state && advertise_state(requested) == 0) {
+				tx_state = requested;
+			}
+			uart_len = 0;
+		}
+	} else if (uart_len < sizeof(uart_line) - 1) {
+		uart_line[uart_len++] = (char)byte;
+	} else {
+		/* Overlong line: discard, never match a tail. */
+		uart_len = 0;
+	}
+}
+
+static void transceiver_run(void)
+{
+	int64_t next_blink = k_uptime_get() + CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
+
+	for (;;) {
+		if (role_switch_poll()) {
+			role_switch_requested();
+			next_blink = k_uptime_get() +
+				     CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
+		}
+
+		if (phy_switch_poll()) {
+			switch_phy();
+		}
+
+		/* UART input is meaningful only in TX mode; RX never
+		 * consumes serial bytes as commands. */
+		if (mode.role == TR_ROLE_TX) {
+			tx_poll_uart();
+		}
+
+		if (k_uptime_get() >= next_blink) {
+			leds_toggle();
+			next_blink = k_uptime_get() + CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
+		}
+
+		k_sleep(K_MSEC(5));
+	}
+}
 
 int main(void)
 {
@@ -245,24 +573,26 @@ int main(void)
 		return err;
 	}
 
+	err = buttons_init();
+	if (err) {
+		return err;
+	}
+	phy_indicator_update();
+
 	err = bt_enable(NULL);
 	if (err) {
 		return err;
 	}
 
-#if defined(CONFIG_TRANSCEIVER_ROLE_TX)
-	err = tx_ble_start();
+	bt_le_scan_cb_register(&scan_callbacks);
+
+	/* Boot default: TX + Coded S=8. */
+	err = tx_transport_start(tx_state);
 	if (err) {
 		return err;
 	}
-	tx_run();
-#else
-	err = rx_ble_start();
-	if (err) {
-		return err;
-	}
-	rx_run();
-#endif
+	transport_active = true;
+	transceiver_run();
 
 	return 0;
 }

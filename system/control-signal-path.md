@@ -19,12 +19,16 @@ Object-detection event
 USB serial (`OBS` / `CLR`)
         |
         v
-Transceiver (TX role)
+Transceiver in TX role
+(same firmware image as RX;
+ board boots as TX)
         |
-BLE Coded PHY S=8
+BLE (Coded S=8 default, 1M switchable)
         |
         v
-Transceiver (RX role)
+Transceiver in RX role
+(same firmware image as TX;
+ Button 2 selects the role)
         |
         v
 USB serial (`OBS` / `CLR` transitions)
@@ -103,18 +107,15 @@ Once these answer blocks are filled, they become the authoritative integration c
 
 ### Hardware
 
-Two Nordic NRF boards are already available:
-
-- one NRF board on the Radar/RIS side as **BLE TX**;
-- one NRF board on the Jackal side as **BLE RX**.
+Two Nordic NRF boards are already available. Both boards run the **same Transceiver firmware image**: every board boots in the TX role on LE Coded PHY S=8, and Button 2 switches a board between TX and RX at runtime with no reboot and no reflash. For the experiment, the Radar/RIS-side board stays in TX and the Jackal-side board is switched once to RX.
 
 No additional hardware is currently expected for this part.
 
 ### Function
 
-The firmware subsystem is the **Transceiver**: one shared firmware application compiled in either TX or RX role. The sensing-side TX receives newline-delimited `OBS` and `CLR` states over USB serial and continuously broadcasts the latched current state. The robot-side RX listens on BLE Coded PHY, suppresses duplicate broadcasts, and exposes only the first `OBS` and first following `CLR` transition over USB serial. TX is identified by two blinking board-defined LEDs; RX by one blinking board-defined LED.
+The firmware subsystem is the **Transceiver**: one firmware image whose TX and RX sides are runtime roles selected on-device. The sensing-side board in the TX role receives newline-delimited `OBS` and `CLR` states over USB serial and continuously broadcasts the latched current state. The robot-side board in the RX role listens on the selected BLE PHY (Coded S=8 default, 1M switchable with Button 1), suppresses duplicate broadcasts, and exposes only the first `OBS` and first following `CLR` transition over USB serial. While in TX the board blinks two board-defined LEDs; while in RX it blinks one; a separate LED shows the PHY. See `firmware/README.md` for the exact button/LED mapping.
 
-The radio path uses non-connectable extended advertising on BLE Coded PHY with the S=8 coding requirement supplied by the nRF Connect SDK advertising-coding-selection API. This prioritizes range over throughput.
+The radio path uses non-connectable extended advertising with the S=8 coding requirement supplied by the nRF Connect SDK advertising-coding-selection API when Coded PHY is selected. This prioritizes range over throughput.
 
 ### Expected effort and timing
 
@@ -129,9 +130,9 @@ The current firmware deliverable ends at a small Python process on the Jackal-si
 ```text
 Radar
   -> serial OBS/CLR
-  -> Transceiver TX
-  -> BLE Coded PHY S=8
-  -> Transceiver RX
+  -> Transceiver in TX role (same image; boots as TX)
+  -> BLE (Coded S=8 default, 1M switchable)
+  -> Transceiver in RX role (same image; Button 2 selects RX)
   -> serial OBS/CLR transitions
   -> Python logger
 ```
@@ -210,7 +211,7 @@ This is the more involved robotics task because it touches the Jackal's existing
 ```mermaid
 flowchart TD
     A["Confirm object-detection event in sensing pipeline"] --> B["Detection event → serial trigger"]
-    C["Build shared Transceiver TX ↔ BLE S=8 ↔ RX"] --> D["RX → laptop serial logger"]
+    C["Build single-image Transceiver (runtime TX/RX, S=8/1M)"] --> D["RX role → laptop serial logger"]
     D --> E["Persistent SSH bridge to Jackal"]
     E --> F["ROS stop input + command arbitration"]
     B --> G["End-to-end sensing-to-stop integration"]
@@ -224,7 +225,7 @@ The sensing-team dependency is isolated to **A/B**. The BLE, laptop bridge, and 
 | Item | Status | Notes |
 |---|---|---|
 | Two NRF boards | Available | No additional BLE hardware currently required |
-| Shared Transceiver TX/RX implementation | Implemented in repository | Build-time roles; coded S=8 advertising; board-alias LED identification |
+| Single-image Transceiver (runtime TX/RX roles) | Implemented in repository | One build; Button 2 selects role, Button 1 selects S=8/1M; board-alias LED identification |
 | Sensing-pipeline event location | Needs confirmation | Main ask for sensing team; answer placeholder is in Section 3 |
 | Pipeline event → serial trigger | Pending | Depends on confirmed insertion point; answer placeholder is in Section 3 |
 | NRF RX → laptop serial logger | Implemented in repository | Deduplicated `OBS`/`CLR` transitions with host UTC timestamps |

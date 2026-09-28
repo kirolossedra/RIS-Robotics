@@ -1,5 +1,7 @@
-# DL-002 — Robot Roles: Dual-Robot Architecture
+# Decision: Dual-Robot Architecture (Husky Dummy, Jackal Controlled)
 
+**ID:** `robot-runtime-0001`
+**Previous ID:** `DL-002`
 **Status:** Accepted — current architecture  
 **Date:** 2026-09-17  
 **Scope:** Robot roles in the RIS Robotics experiment
