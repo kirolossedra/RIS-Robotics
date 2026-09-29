@@ -47,7 +47,7 @@ validation here.
 | Observed behavior | Campaign completed 2026-09-17; signatures characterized qualitatively |
 | Pass criterion | Not formally defined |
 | Current status | Inconclusive as detector validation (placeholder model) |
-| Evidence | `session-logs/2026-09-17.md`, `decision-logs/robot-runtime-0002-*.md` |
+| Evidence | `decision-logs/robot-runtime-0002-*.md` (the 2026-09-17 session narrative was removed with `session-logs/`; the acquisition decision is preserved in the decision record) |
 
 | Item | Description |
 |---|---|
