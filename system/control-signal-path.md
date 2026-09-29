@@ -144,8 +144,12 @@ acquisition, range/Doppler/Capon feature maps, CNN-LSTM inference
 (currently an explicit placeholder model), rolling-vote display, and raw
 `.npy` capture recording. What is still missing is exactly Ask 1/2
 above: emitting the voted detection as a serial trigger into the
-Transceiver TX board. No serial, ROS, or network output leaves `dsp/`
-today.
+Transceiver TX board. The insertion point and adapter design are
+identified in [`dsp/docs/serial-integration-point.md`](../dsp/docs/serial-integration-point.md),
+and the obstacle-state FSM plus serial writer are implemented and unit
+tested (`dsp/integration/`) — hardware validation against a real TX
+board is pending, and the bridge stays disabled without an explicit
+`--serial-port` (refused under placeholder inference).
 
 ## 6. Later deliverable — Serial-to-SSH bridge
 

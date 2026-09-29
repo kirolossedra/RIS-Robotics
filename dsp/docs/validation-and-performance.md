@@ -18,6 +18,17 @@ validation here.
 
 | Item | Description |
 |---|---|
+| Component | Obstacle-state FSM + serial output (`dsp/integration/`) |
+| Method | 14 hardware-free unit tests (FSM table, episode, framing, no-write cases, failure/retry, record_frames wiring with fake stream) |
+| Input/data | Label sequences incl. unknowns; fake serial stream with fail mode |
+| Expected behavior | Transition-only exact `b"OBS\n"`/`b"CLR\n"`; holds on unknown; init silence; retry after failure |
+| Observed behavior | 14/14 PASS (with the 14 pre-existing DSP tests: 28/28 total, 2026-09-28) |
+| Pass criterion | `unittest` OK |
+| Current status | PASS in software; hardware validation pending |
+| Evidence | `dsp/tests/test_serial_integration.py` |
+
+| Item | Description |
+|---|---|
 | Component | Hardware-free unit suite `dsp/tests/test_realtime_detection.py` |
 | Method | `python -m unittest discover -s tests -v` (14 tests: capture/save paths, voting, windowing, warm-up, Capon equivalence, GUI completion behavior) |
 | Input/data | Faked radar/GUI/classifier; synthetic NumPy frames; seeded RNG for Capon check |

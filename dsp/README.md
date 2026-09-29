@@ -213,6 +213,10 @@ Settings are at the top of `collect_data_realtime.py`:
 - `VOTE_WINDOW_PREDICTIONS`: number of recent predictions used for smoothing.
 - `SHOW_DETECTION_STATUS_GUI`, `LOCATION_LABEL`, and `SHOW_LIVE_PLOT`: display options.
 - `CLASSIFICATION_MODEL_PATH` and `PLACEHOLDER_MODE`: model configuration.
+- `--serial-port`, `--serial-baud`, `--serial-allow-placeholder`: command-line
+  only (no settings constants). Serial NRF output requires an explicit
+  port and is refused under placeholder inference without the
+  development-only override flag.
 
 The radar SDK, NumPy, Matplotlib, Keras, TensorFlow, and Tkinter must be available
 in the Python environment. Keras/TensorFlow dependencies are listed in
@@ -239,6 +243,12 @@ Run the automated checks without connecting a radar:
   what has actually been measured or validated.
 - [`docs/algorithms/`](docs/algorithms/) — one document per substantive
   algorithm, in pipeline order.
+- [`docs/state-machines.md`](docs/state-machines.md) — control-relevant
+  state (vote filter, buffers, clutter memory, GUI latch, NRF latch,
+  proposed obstacle adapter).
+- [`docs/serial-integration-point.md`](docs/serial-integration-point.md) —
+  exact planned insertion point, obstacle-state FSM, transition
+  semantics, blockers. No serial code written yet.
 - [`tests/README.md`](tests/README.md) — hardware-free test coverage.
 
 ## Current engineering status
@@ -248,6 +258,7 @@ Run the automated checks without connecting a radar:
 | Acquisition + recording (512-frame `.npy` captures) | Implemented; exercised in live sessions |
 | Placeholder classification + GUI display | Implemented; explicitly not a detector |
 | Trained person/robot detector | TBD — no trained model in the repository |
+| Serial `OBS`/`CLR` bridge to NRF TX | Implemented + unit tested; hardware validation pending — see [`docs/serial-integration-point.md`](docs/serial-integration-point.md) |
 | Serial `OBS`/`CLR` trigger to NRF TX | Not implemented — integration work remains |
 | Unit-test suite (14 checks) | Implemented; executed 2026-09-28, 14/14 PASS (SDK stubbed, see validation doc) |
 | Timing/latency/CPU measurements | Not currently measured |

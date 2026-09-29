@@ -1,3 +1,4 @@
+import argparse
 import time
 from collections import Counter, deque
 from pathlib import Path
@@ -9,6 +10,8 @@ from ifxradarsdk import get_version_full
 from ifxradarsdk.fmcw import DeviceFmcw
 from ifxradarsdk.fmcw.types import FmcwMetrics, FmcwSimpleSequenceConfig
 
+from integration.obstacle_state import ObstacleStateAdapter
+from integration.serial_output import BAUD, SerialStateOutput
 from patient_status_gui import DetectionStatusGUI
 from realtime_classifier import (
     DETECTION_CLASS_NAMES,
@@ -38,6 +41,26 @@ LOCATION_LABEL = "RIS Corner"
 # Keep True until the model and output mapping are replaced with a trained detector.
 PLACEHOLDER_MODE = True
 CLASSIFICATION_MODEL_PATH = Path(__file__).resolve().parent / "Bathroom_CNNLSTM.keras"
+
+SERIAL_BAUD = BAUD
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(
+        description="RIS Corner real-time radar detection. "
+        "Serial NRF output requires --serial-port and is refused "
+        "under placeholder inference without --serial-allow-placeholder."
+    )
+    parser.add_argument("--serial-port", default=None,
+                        help="NRF TX console device, e.g. COM14 or /dev/ttyACM0. "
+                        "Absent: DSP + display run with serial disabled.")
+    parser.add_argument("--serial-baud", type=int, default=SERIAL_BAUD,
+                        help="Serial baud rate (default: 115200 for NRF TX).")
+    parser.add_argument("--serial-allow-placeholder", action="store_true",
+                        help="DEVELOPMENT ONLY: permit serial output while "
+                        "PLACEHOLDER_MODE is on, for integration testing "
+                        "without the trained model. Never use in experiments.")
+    return parser.parse_args(argv)
 
 
 # =========================
@@ -116,6 +139,7 @@ def record_frames(
     device, save_path, frame_shape, num_frames=NUM_FRAMES,
     realtime_classifier=None, status_gui=None, live_plot=None,
     vote_window=VOTE_WINDOW_PREDICTIONS,
+    serial_writer=None, obstacle_adapter=None,
 ):
     """Capture a bounded recording and save only acquired frames, including on stop/error."""
     if num_frames < 1 or vote_window < 1:
@@ -147,6 +171,14 @@ def record_frames(
                     class_name, confidence, _ = prediction
                     prediction_votes.append((class_name, confidence))
                     voted_name, voted_score, vote_count = vote_predictions(prediction_votes)
+                    if obstacle_adapter is not None:
+                        obstacle_adapter.update(voted_name)
+                        if obstacle_adapter.fault is not None:
+                            print(f"\nIntegration fault: {obstacle_adapter.fault}")
+                        if serial_writer is not None and not serial_writer.sync(
+                            obstacle_adapter.state
+                        ):
+                            print(f"\n{serial_writer.last_error}")
                     print(
                         f"\n{voted_name} "
                         f"({vote_count}/{len(prediction_votes)} votes, "
@@ -182,7 +214,8 @@ def record_frames(
 # MAIN SCRIPT
 # =========================
 
-def main():
+def main(argv=None):
+    args = parse_args(argv)
     print("\n==========================================")
     print("RIS Corner - Realtime Person / Robot Detection")
     print("==========================================")
@@ -196,9 +229,29 @@ def main():
             print("PLACEHOLDER MODE: temporary labels for UI testing, not trained detections.")
     else:
         print("Classification disabled; recording raw radar data only.")
+    if args.serial_port is None:
+        print("Serial NRF output: disabled (no --serial-port).")
+    elif PLACEHOLDER_MODE and not args.serial_allow_placeholder:
+        print("ERROR: refusing serial output under placeholder inference. "
+              "Train/replace the detector (PLACEHOLDER_MODE = False) or pass "
+              "--serial-allow-placeholder for development-only testing.")
+        return 2
+    else:
+        print(f"Serial NRF output: {args.serial_port} at {args.serial_baud} baud"
+              + (" (DEVELOPMENT placeholder override)" if PLACEHOLDER_MODE else ""))
     print("==========================================\n")
 
     input("Place radar / subject, then press ENTER to start...")
+
+    obstacle_adapter = ObstacleStateAdapter() if args.serial_port else None
+    serial_writer = None
+    if args.serial_port:
+        serial_writer = SerialStateOutput(args.serial_port, args.serial_baud)
+        try:
+            serial_writer.open()
+        except RuntimeError as exc:
+            print(f"ERROR: {exc}")
+            return 2
 
     status_gui = None
     live_plot = None
@@ -279,6 +332,7 @@ def main():
                 device, SAVE_PATH, (num_rx_antennas, num_chirps, num_samples),
                 num_frames=NUM_FRAMES, realtime_classifier=realtime_classifier,
                 status_gui=status_gui, live_plot=live_plot,
+                serial_writer=serial_writer, obstacle_adapter=obstacle_adapter,
             )
 
         completion = "Collection complete" if frame_count == NUM_FRAMES else "Recording stopped"
@@ -298,7 +352,11 @@ def main():
             status_gui.close()
         if live_plot is not None:
             live_plot.close()
+        if serial_writer is not None:
+            serial_writer.close()
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

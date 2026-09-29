@@ -32,7 +32,7 @@ the implementation or its configuration supports it.
 | Elevation map | `_capon_map(profiles[[1,2]], a_phi)` | `elevation_map` | `(num_samples//2, 2·chirps)` | real power-like (1/denominator) | Capon spatial spectrum over elevation angle × range | `_prepare_map` → model input 1 |
 | Model map | `abs → float32 → resize (32, 256)` | stacked `(10, 32, 256)` | `(window, 32, 256)` | float32, per-frame z-scored | Network input frame | `_predict` |
 | Prediction | `argmax(probabilities)` + mapping | `(class_name, confidence, probabilities)` | str, float, `(n_classes,)` | Label + winning softmax score | Vote deque, GUI, terminal |
-| Vote result | `vote_predictions(deque≤5)` | `(voted_name, voted_score, vote_count)` | str, float, int | Smoothed display state | GUI + terminal line |
+| Vote result | `vote_predictions(deque≤5)` | `(voted_name, voted_score, vote_count)` | str, float, int | Smoothed display state; the final authoritative classification and the planned serial source (see [`serial-integration-point.md`](serial-integration-point.md)) | GUI + terminal line |
 | Live bin magnitude | `mean over RX of |FFT(bin 1)|` | float (from `compute_live_bin_mag`) | scalar per frame | Real-part-only magnitude at FFT bin 1, chirp 0 — diagnostic, see limitations | Live plot |
 
 ## Derived radar quantities

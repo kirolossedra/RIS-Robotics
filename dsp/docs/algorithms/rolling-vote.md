@@ -129,7 +129,12 @@ None — constant-time display smoothing outside acquisition/DSP cost.
 
 Count-then-score behavior (majority wins; 1–1 tie goes to higher mean
 score) and first-prediction immediacy verified by unit tests —
-executed 2026-09-28, PASS. No on-air tuning validation.
+executed 2026-09-28, PASS. No on-air tuning validation. Note the vote
+is a symmetric majority filter, not hysteresis: entry and clearing use
+identical evidence (see [`../state-machines.md`](../state-machines.md));
+the voted label is the final authoritative classification and the
+planned serial source (see
+[`../serial-integration-point.md`](../serial-integration-point.md)).
 
 ## References / provenance
 

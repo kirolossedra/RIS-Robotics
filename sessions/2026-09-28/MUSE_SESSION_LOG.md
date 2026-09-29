@@ -1140,6 +1140,74 @@ Restructure: `sessions/` parent with one folder per date containing everything f
 
 User commits/pushes (or instructs); then human LED/button cross-checks.
 
+## 2026-09-28 — DSP state machines + serial integration design (analysis only, uncommitted)
+
+### User request
+
+Analyze/document (no serial implementation): all explicit/implicit DSP state machines; exact person/robot path; one recommended serial insertion point with file/function/variable/before/after; CLEAR/OBSTACLE adapter FSM + Mermaid; transition-only OBS/CLR semantics; CLR definability; hysteresis eval; placeholder + index-5 + unknown-class handling; failure semantics (never coerce unknown to CLR); NRF TX contract from firmware source; ownership boundary (`dsp/integration/`, not created); exact future call flow; blockers. Update dsp + system docs surgically. Report A–I.
+
+### Actions performed
+
+- Verified NRF TX contract from `firmware/transceiver/src/main.c` (`tx_poll_uart`: exact OBS/CLR lines, 7-char buffer, overlong-discard, invalid-ignored, latch + re-advertise on change only; 115200 8N1 established earlier).
+- Created `dsp/docs/state-machines.md` (SM-1 recording FSM, SM-2 window accumulator, SM-3 vote temporal filter — explicitly not FSM/hysteresis, SM-4 clutter memory, SM-5 GUI latch incl. ValueError-on-unknown path, SM-6 NRF latch, proposed SM-7; raw-vs-stable-vs-control separation; terminology verdicts) and `dsp/docs/serial-integration-point.md` (class table incl. producible index 5, predicate, insertion point, 4-way placement analysis, FSM + Mermaid, transition-only rationale, CLR-via-vote with placeholder untrustworthiness stated, no invented timeouts, failure table with hold-not-clear invariant, contract, ownership, call flow, 5 blockers).
+- Updated indexes (`dsp/docs/README.md`, `dsp/README.md` map + status row) and cross-links (pipeline vote stage, contracts vote row, real-time failure row, rolling-vote validation note, `system.md` + `control-signal-path.md` planned-chain sentences). No serial code written; `dsp/integration/` not created.
+- Validated: links PASS (18 files), TOCs present, diff is docs-only (8 modified + 2 new, +29/−6), no implementation files touched. No commit (not instructed).
+
+### Results
+
+- Insertion point: `dsp/collect_data_realtime.py` → `record_frames()`, after `vote_predictions()` yields `voted_name`, before print/GUI update; adapter `class_to_obstacle_state()` → proposed FSM → future writer.
+- Semantics: internal CLEAR/OBSTACLE, wire CLR/OBS on transitions only, init CLEAR (matches NRF boot), unknown/error holds + faults visibly; vote is symmetric (flicker possible, no hysteresis); GUI stays display-only.
+- Blockers: no trained model (bridge must stay disabled), undocumented antenna geometry, pyserial undeclarated, no COM discovery, GUI ValueError ordering.
+
+### Changes made
+
+- Created: `dsp/docs/state-machines.md`, `dsp/docs/serial-integration-point.md`. Modified: 8 docs (listed above). No code changes. Uncommitted working tree. Temp: none new.
+- Appended this entry. No commits, no pushes.
+
+### Conclusion
+
+- Code-ready integration design complete with exact symbols and explicit blockers; the serial bridge remains correctly unimplemented.
+
+### Next boundary
+
+Human LED/button cross-checks (transceiver); serial implementation as a separately authorized task once blockers (trained model first) lift.
+
+## 2026-09-28 — DSP→NRF serial integration implemented, tested, pushed (no HW)
+
+### User request
+
+Implement the analyzed boundary: ObstacleStateAdapter (CLEAR/OBSTACLE, transition-only, unknown-hold, init CLEAR silent) + SerialStateOutput (exact framing, 115200, retry via last-transmitted, clean close) wired after vote_predictions() before print/GUI; argparse CLI (--serial-port/--baud/--serial-allow-placeholder dev override); placeholder gate refusing serial in normal mode; pyserial declared; docs converted to implementation records; 14 old + new FSM/serial/wiring tests green; hardware smoke only if TX board present; commit + push to main.
+
+### Actions performed
+
+- Created `dsp/integration/` (`obstacle_state.py`, `serial_output.py`, `__init__.py`, `README.md`); mapping derived from `DETECTION_CLASS_NAMES` (0/1 obstacle, 2 clear).
+- Wired `collect_data_realtime.py`: argparse, placeholder gate (exit 2), eager open (fail fast), adapter+`sync()` per prediction before print/GUI, `finally` close, `main()` returns int.
+- Verified firmware contract from `main.c` (`tx_poll_uart`): exact lines, 7-char buffer, invalid ignored, latch-on-change, boot CLR, 115200.
+- Added `pyserial` to `dsp/requirements.txt`; wrote `tests/test_serial_integration.py` (15 tests: FSM table, episode, framing, no-write cases, failure/retry, close, pyserial-absent open failure, CLI defaults, record_frames wiring with fake stream).
+- Ran suite with SDK stub: 29/29 PASS (14 pre-existing intact).
+- Docs: SM-7 implemented record, serial doc → implementation record (real call flow, CLI, gate, failures), status/table/pointer updates in dsp/README, pipeline, contracts, real-time, rolling-vote, validation (+serial test row), system.md, control-signal-path.md, root README.
+- Hardware check: no probes/COMs OK (all Unknown/disconnected) → no smoke test per task rules; stated pending.
+- Validated: links PASS (19 files), diff scope (code: integration/ + wiring + requirements + tests; docs as listed; no DSP algorithm changes), then committed + pushed.
+
+### Results
+
+- Control path live in code: vote → adapter latch → transition-only `b"OBS\n"`/`b"CLR\n"` → (future) NRF TX. Placeholder output cannot reach hardware in normal mode (startup refusal); explicit dev override is named, bannered, documented.
+- Unknown/invalid holds state + faults visibly, never clears; failures retry via stale `last_transmitted`; shutdown emits nothing and closes quietly.
+
+### Changes made
+
+- Created: `dsp/integration/` (4 files), `dsp/tests/test_serial_integration.py`.
+- Modified: `dsp/collect_data_realtime.py` (+62), `dsp/requirements.txt`, 9 docs.
+- Commit + push below. No hardware touched.
+
+### Conclusion
+
+- Implementation complete, software-tested, documented; hardware validation pending board availability.
+
+### Next boundary
+
+Human LED/button cross-checks (transceiver); NRF serial smoke test when a TX board is connected; trained detector remains future work.
+
 ## 2026-09-28 — DSP subsystem documentation (industry-grade record, committed + pushed)
 
 ### User request

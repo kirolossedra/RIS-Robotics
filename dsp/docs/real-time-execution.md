@@ -116,7 +116,7 @@ capture buffer/counter; GUI and plot objects. See
 | Output mapping mismatch | `ValueError` at startup if indices don't cover outputs exactly once |
 | Unknown GUI status string | `ValueError` from `update_status` |
 | `num_rx < 3` sensor | `ValueError` at classifier construction |
-| Downstream serial/ROS unavailable | Not applicable — no such output exists yet |
+| Downstream serial/ROS unavailable | Not applicable — no such output exists yet (planned boundary: [`serial-integration-point.md`](serial-integration-point.md)) |
 
 Undefined: behavior on late/lost frames beyond the SDK timeout,
 recovery without restart, and any timing guarantee.

@@ -35,6 +35,8 @@ algorithms/
 | [`parameters-and-tuning.md`](parameters-and-tuning.md) | Hardware-derived, signal-derived, algorithm, tuned, and runtime parameters with locations and consequences. |
 | [`validation-and-performance.md`](validation-and-performance.md) | Evidence only: unit tests, live sessions, and everything not yet measured. |
 | [`algorithms/README.md`](algorithms/README.md) | Algorithm inventory in pipeline order with implementation links. |
+| [`state-machines.md`](state-machines.md) | Every control-relevant state machine (vote filter, buffers, clutter memory, GUI latch, NRF latch, proposed adapter) and the raw-vs-stable-vs-control distinction. |
+| [`serial-integration-point.md`](serial-integration-point.md) | Exact insertion point, obstacle-state FSM design, transition semantics, NRF contract, blockers. Serial code is not yet written. |
 
 ## Suggested reading paths
 

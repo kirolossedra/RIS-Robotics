@@ -118,16 +118,27 @@ flowchart TB
 - State: `prediction_votes` deque in `record_frames()`.
 - Real-time critical: no (≤5 elements).
 - Details: [`algorithms/rolling-vote.md`](algorithms/rolling-vote.md).
+  State-machine interpretation and the serial boundary live in
+  [`state-machines.md`](state-machines.md) and
+  [`serial-integration-point.md`](serial-integration-point.md): the voted
+  label is the final authoritative classification and the only defensible
+  serial source.
 
-### 7. Display + recording close-out
+### 7. Display + recording close-out — plus serial branch
 
 - GUI (`DetectionStatusGUI`): result text/color, progress bar, stop/close
   handling, last-result retention; `pump()` runs Tk each frame.
 - Terminal: banner, config echo, per-frame counter, vote lines, save
   summary, error reports.
+- Serial branch (only with `--serial-port`): on each prediction,
+  `ObstacleStateAdapter.update(voted_name)` advances the CLEAR/OBSTACLE
+  latch (unknown holds + fault print), and `SerialStateOutput.sync()`
+  writes `OBS`/`CLR` on transitions only, retrying after failures;
+  port opened eagerly and closed in `finally` with no exit-time `CLR`.
 - Save: `np.save` of acquired frames only, on finish, early stop, or
   error; `stop_acquisition()` always attempted first.
-- Details: [`real-time-execution.md`](real-time-execution.md).
+- Details: [`real-time-execution.md`](real-time-execution.md),
+  [`serial-integration-point.md`](serial-integration-point.md).
 
 ## Branching and side paths
 
