@@ -56,7 +56,8 @@ The system-level control center is [`system/README.md`](system/README.md). It se
 
 Key system records:
 
-- [`system/architecture.md`](system/architecture.md) — physical/logical topology, responsibilities, boundaries, and non-goals.
+- [`system/architecture.md`](system/architecture.md) — comprehensive whole-system and part-by-part architecture dossier.
+- [`system/uml.md`](system/uml.md) — structural, deployment, sequence, state, and activity UML views.
 - [`system/interfaces.md`](system/interfaces.md) — contracts between DSP, serial, BLE, RX, and the not-yet-implemented Jackal side.
 - [`system/runtime-and-state.md`](system/runtime-and-state.md) — state machines, latches, gating semantics, and runtime ownership.
 - [`system/requirements-and-traceability.md`](system/requirements-and-traceability.md) — system requirements tied to implementation and evidence.

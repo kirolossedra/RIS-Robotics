@@ -33,7 +33,8 @@ An item can be both implemented and blocked, or implemented and not yet validate
 
 ## Documentation map
 
-- [`architecture.md`](architecture.md) — system topology, boundaries, responsibilities, and non-goals.
+- [`architecture.md`](architecture.md) — comprehensive system architecture dossier with whole-system and part-by-part Mermaid views.
+- [`uml.md`](uml.md) — whole-system UML structural, deployment, sequence, state, and activity views.
 - [`interfaces.md`](interfaces.md) — exact inter-subsystem contracts and which contracts are still proposals.
 - [`runtime-and-state.md`](runtime-and-state.md) — state ownership, latches, transitions, and STOP gating.
 - [`requirements-and-traceability.md`](requirements-and-traceability.md) — explicit system requirements tied to implementation and evidence.
