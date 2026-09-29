@@ -158,8 +158,8 @@ Validated 2026-09-28 — see [`validation/2026-09-28-two-board-smoke-test.md`](v
 This directory implements only:
 
 ```text
-Radar -> serial -> TX Transceiver -> BLE (LE 1M or Coded PHY S=8)
-      -> RX Transceiver -> serial -> Python logger
+Upstream DSP host -> serial -> TX Transceiver -> BLE (LE 1M or Coded PHY S=8)
+                  -> RX Transceiver -> serial -> Python logger
 ```
 
 SSH forwarding, ROS arbitration, and Jackal `cmd_vel` control are downstream context and are intentionally not implemented here.
