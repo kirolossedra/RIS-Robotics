@@ -1,4 +1,149 @@
-# RIS Corner real-time radar detection
+# RIS DSP — real-time radar acquisition and person/robot detection
+
+## Contents
+
+- [Purpose](#purpose)
+- [System boundary](#system-boundary)
+- [Pipeline overview](#pipeline-overview)
+- [Directory structure](#directory-structure)
+- [Runtime entry points](#runtime-entry-points)
+- [Inputs](#inputs)
+- [Outputs](#outputs)
+- [Dependencies](#dependencies)
+- [Running the system](#running-the-system)
+- [Placeholder model](#placeholder-model)
+- [Settings](#settings)
+- [Documentation map](#documentation-map)
+- [Current engineering status](#current-engineering-status)
+
+## Purpose
+
+This subsystem acquires real-time data from an Infineon FMCW radar,
+processes it into range/Doppler/angle feature maps, classifies what is in
+front of the sensor (person, robot, or nothing), and shows the result live
+while recording the raw capture. It is the sensing-side front end of
+RIS-Robotics: its detection display is what a future serial trigger to the
+NRF Transceiver TX board will be derived from. That serial trigger is not
+implemented here yet — see [System boundary](#system-boundary).
+
+## System boundary
+
+What enters DSP:
+
+- Raw FMCW frames from the Infineon radar over USB, via the vendor
+  `ifxradarsdk` (`collect_data_realtime.py` → `DeviceFmcw`).
+- An operator pressing Enter (start), the Stop button / window close /
+  Ctrl+C (stop), and the settings at the top of
+  `collect_data_realtime.py`.
+
+What DSP owns:
+
+- Radar configuration (metrics + chirp overrides), acquisition loop,
+  preprocessing and feature-map formation (`realtime_classifier.py`),
+  CNN-LSTM inference, rolling-vote decision smoothing, live GUI and live
+  plot, and saving the raw `.npy` capture.
+
+What DSP does not own:
+
+- The radar hardware, the vendor SDK, the trained detector (the bundled
+  model is an explicit placeholder), the NRF/BLE/robot path, and any
+  serial `OBS`/`CLR` trigger — none is emitted by this code.
+
+What leaves DSP:
+
+- On-screen detection state (`Person detected` / `Robot detected` /
+  `Nothing detected`), terminal vote lines, and a saved
+  `(frames, rx, chirps, samples)` `complex64` NumPy capture.
+
+The Jackal-side control path consumes nothing from DSP automatically yet;
+bridging a detection to the NRF TX serial input remains integration work
+(see `system/control-signal-path.md` Ask 1/2).
+
+## Pipeline overview
+
+```mermaid
+flowchart LR
+    R["Infineon FMCW radar<br/>(USB, ifxradarsdk)"] --> ACQ["Acquisition loop<br/>collect_data_realtime.record_frames"]
+    ACQ --> RAW["Raw capture buffer<br/>(512, rx, chirps, samples)"]
+    ACQ --> FEAT["Feature maps per frame<br/>realtime_classifier._make_maps"]
+    FEAT --> WIN["10-frame windows<br/>non-overlapping segments"]
+    WIN --> CNN["CNN-LSTM inference<br/>placeholder model"]
+    CNN --> VOTE["Rolling vote (≤5)<br/>vote_predictions"]
+    VOTE --> GUI["GUI + terminal"]
+    RAW --> NPY["Saved .npy file"]
+    ACQ -.-> PLOT["Live bin-magnitude plot<br/>(diagnostic only)"]
+```
+
+Actual stages in code order: metrics/chirp configuration → acquisition
+(`device.get_next_frame`) → per-frame range–Doppler + Capon elevation
+maps → 10-frame buffering → per-timestep normalization → model
+prediction every 10th frame → majority vote over recent predictions →
+GUI/terminal update → `.npy` save of acquired frames (including on
+early stop or error). Details: [`docs/signal-processing-pipeline.md`](docs/signal-processing-pipeline.md).
+
+## Directory structure
+
+```text
+dsp/
+├── README.md                      this index
+├── collect_data_realtime.py       acquisition, voting, recording, entry point
+├── realtime_classifier.py         preprocessing, feature maps, model adapter
+├── patient_status_gui.py          Tk detection display (legacy filename kept)
+├── requirements.txt               keras + tensorflow only (see Dependencies)
+├── __init__.py                    package marker
+├── tests/
+│   ├── README.md                  what the hardware-free tests cover
+│   └── test_realtime_detection.py 14 unittest checks (no radar needed)
+└── docs/                          engineering documentation (see below)
+```
+
+## Runtime entry points
+
+- Primary runtime: `collect_data_realtime.py` → `main()` (acquire +
+  classify + display + save). Requires a connected Infineon radar and
+  the vendor SDK.
+- Automated checks: `python -m unittest discover -s tests -v` from this
+  folder. Hardware-free (faked radar/GUI/classifier); still imports the
+  real modules, so `ifxradarsdk`, `matplotlib`, and `tkinter` must be
+  importable — see [`docs/validation-and-performance.md`](docs/validation-and-performance.md).
+- `realtime_classifier.py` and `patient_status_gui.py` are libraries;
+  nothing else in the repository imports them.
+
+## Inputs
+
+- FMCW frames `(rx, chirps, samples)` of complex samples from
+  `device.get_next_frame(timeout_ms=1000)[0]`; concrete `rx/chirps/samples`
+  counts are read back from the configured SDK sequence at startup and
+  printed. Frame cadence is set by `sequence.loop.repetition_time_s =
+  1 / FRAME_RATE` with `FRAME_RATE = 12.94`.
+- Operator actions (Enter to start, Stop/close/Ctrl+C to stop early).
+
+## Outputs
+
+- Continuous: GUI result text + color, progress bar, terminal
+  `Frame i/N` counters and vote lines.
+- Per 10-frame window: one `(label, confidence, probabilities)` prediction.
+- Per recording: one `.npy` file with only the frames actually acquired.
+- Diagnostic only: live bin-magnitude plot (`SHOW_LIVE_PLOT`, off by
+  default).
+- Not produced: any serial/network trigger, ROS message, or file other
+  than the capture.
+
+## Dependencies
+
+| Dependency | Role | Specified where | Note |
+|---|---|---|---|
+| `ifxradarsdk` (+ parent SDK folder) | Radar hardware API | Not in `requirements.txt` | Provided separately; absence breaks even the test imports — engineering gap, see `docs/validation-and-performance.md` |
+| `keras`, `tensorflow` | Model loading/inference | `requirements.txt` | Only the model path needs them at runtime |
+| `numpy` | All numerics | Assumed present | Verified locally as 2.5.2 |
+| `matplotlib` | Live plot + import-time dependency | Assumed present | Imported by `collect_data_realtime.py` unconditionally |
+| `tkinter` | GUI | Python stdlib (needs OS Tk) | Imported by `patient_status_gui.py` unconditionally |
+| Trained detector | Real detections | `CLASSIFICATION_MODEL_PATH` | Currently a placeholder activity model; no detection accuracy implied |
+
+There is no lockfile and no pinned versions; reproducible-environment
+specification is a gap (see `docs/validation-and-performance.md`).
+
+## Running the system
 
 Run from this folder using the existing Python environment:
 
@@ -78,3 +223,37 @@ Run the automated checks without connecting a radar:
 ```powershell
 .\.venv_tf\Scripts\python.exe -m unittest discover -s tests -v
 ```
+
+## Documentation map
+
+- [`docs/README.md`](docs/README.md) — what each engineering document answers.
+- [`docs/signal-processing-pipeline.md`](docs/signal-processing-pipeline.md) —
+  how data moves through the chain.
+- [`docs/data-and-signal-contracts.md`](docs/data-and-signal-contracts.md) —
+  representations, shapes, units, interfaces.
+- [`docs/real-time-execution.md`](docs/real-time-execution.md) — the system
+  as a running real-time program.
+- [`docs/parameters-and-tuning.md`](docs/parameters-and-tuning.md) — operating
+  point and tuning.
+- [`docs/validation-and-performance.md`](docs/validation-and-performance.md) —
+  what has actually been measured or validated.
+- [`docs/algorithms/`](docs/algorithms/) — one document per substantive
+  algorithm, in pipeline order.
+- [`tests/README.md`](tests/README.md) — hardware-free test coverage.
+
+## Current engineering status
+
+| Area | Status |
+|---|---|
+| Acquisition + recording (512-frame `.npy` captures) | Implemented; exercised in live sessions |
+| Placeholder classification + GUI display | Implemented; explicitly not a detector |
+| Trained person/robot detector | TBD — no trained model in the repository |
+| Serial `OBS`/`CLR` trigger to NRF TX | Not implemented — integration work remains |
+| Unit-test suite (14 checks) | Implemented; executed 2026-09-28, 14/14 PASS (SDK stubbed, see validation doc) |
+| Timing/latency/CPU measurements | Not currently measured |
+| Detection accuracy / false-alarm metrics | Not currently measured (placeholder model) |
+| Antenna-geometry documentation (which pair is elevation) | Not currently documented |
+
+Nothing in this table implies validation beyond what
+[`docs/validation-and-performance.md`](docs/validation-and-performance.md)
+records.
