@@ -11,6 +11,7 @@ from ifxradarsdk.fmcw import DeviceFmcw
 from ifxradarsdk.fmcw.types import FmcwMetrics, FmcwSimpleSequenceConfig
 
 from integration.obstacle_state import ObstacleStateAdapter
+from integration.serial_discovery import discover_nrf_serial_port, find_nrf_boards
 from integration.serial_output import BAUD, SerialStateOutput
 from patient_status_gui import DetectionStatusGUI
 from realtime_classifier import (
@@ -48,12 +49,10 @@ SERIAL_BAUD = BAUD
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="RIS Corner real-time radar detection. "
-        "Serial NRF output requires --serial-port and is refused "
-        "under placeholder inference without --serial-allow-placeholder."
+        "The NRF TX console is discovered automatically; serial output "
+        "is refused under placeholder inference without "
+        "--serial-allow-placeholder."
     )
-    parser.add_argument("--serial-port", default=None,
-                        help="NRF TX console device, e.g. COM14 or /dev/ttyACM0. "
-                        "Absent: DSP + display run with serial disabled.")
     parser.add_argument("--serial-baud", type=int, default=SERIAL_BAUD,
                         help="Serial baud rate (default: 115200 for NRF TX).")
     parser.add_argument("--serial-allow-placeholder", action="store_true",
@@ -61,6 +60,46 @@ def parse_args(argv=None):
                         "PLACEHOLDER_MODE is on, for integration testing "
                         "without the trained model. Never use in experiments.")
     return parser.parse_args(argv)
+
+
+def discover_serial_device():
+    """Locate the NRF TX console without transmitting anything.
+
+    Returns the device path on unambiguous success, else None (serial
+    disabled; the caller prints why and continues DSP normally).
+    """
+    boards = find_nrf_boards()
+    if not boards:
+        print("Warning: no nRF/J-Link serial interface could be detected. "
+              "DSP will continue with serial output disabled.")
+        return None
+    if len(boards) > 1:
+        print("Warning: multiple nRF/J-Link boards were detected and the TX "
+              "board cannot be identified unambiguously.")
+        for board in boards:
+            for interface in board.interfaces:
+                print(f"  Port: {interface.device} "
+                      f"Description: {interface.description or '-'} "
+                      f"Manufacturer: {interface.manufacturer or '-'} "
+                      f"Product: {interface.product or '-'} "
+                      f"Serial: {interface.serial_number or '-'} "
+                      f"Location: {interface.location or '-'} "
+                      f"Interface: {interface.interface or '-'} "
+                      f"HWID: {interface.hwid or '-'}")
+        print("Serial output has been disabled. DSP processing will continue normally.")
+        return None
+    board = boards[0]
+    if len(board.interfaces) > 1:
+        print("Note: one board exposes multiple serial interfaces; selecting "
+              "the lowest-numbered interface (DK target-UART convention).")
+    interface = board.interfaces[0]
+    print("Auto-detected nRF serial interface")
+    print(f"  Port: {interface.device}")
+    print(f"  Description: {interface.description or '-'}")
+    print(f"  Manufacturer: {interface.manufacturer or '-'}")
+    print(f"  Product: {interface.product or '-'}")
+    print(f"  Serial number: {interface.serial_number or '-'}")
+    return interface.device or None
 
 
 # =========================
@@ -229,29 +268,31 @@ def main(argv=None):
             print("PLACEHOLDER MODE: temporary labels for UI testing, not trained detections.")
     else:
         print("Classification disabled; recording raw radar data only.")
-    if args.serial_port is None:
-        print("Serial NRF output: disabled (no --serial-port).")
+    serial_device = discover_serial_device()
+    if serial_device is None:
+        print("Serial NRF output: disabled.")
     elif PLACEHOLDER_MODE and not args.serial_allow_placeholder:
         print("ERROR: refusing serial output under placeholder inference. "
               "Train/replace the detector (PLACEHOLDER_MODE = False) or pass "
               "--serial-allow-placeholder for development-only testing.")
         return 2
     else:
-        print(f"Serial NRF output: {args.serial_port} at {args.serial_baud} baud"
+        print(f"Serial NRF output: {serial_device} at {args.serial_baud} baud"
               + (" (DEVELOPMENT placeholder override)" if PLACEHOLDER_MODE else ""))
     print("==========================================\n")
 
     input("Place radar / subject, then press ENTER to start...")
 
-    obstacle_adapter = ObstacleStateAdapter() if args.serial_port else None
+    obstacle_adapter = ObstacleStateAdapter() if serial_device else None
     serial_writer = None
-    if args.serial_port:
-        serial_writer = SerialStateOutput(args.serial_port, args.serial_baud)
+    if serial_device:
+        serial_writer = SerialStateOutput(serial_device, args.serial_baud)
         try:
             serial_writer.open()
         except RuntimeError as exc:
-            print(f"ERROR: {exc}")
-            return 2
+            print(f"WARNING: {exc} DSP continues with serial output disabled.")
+            serial_writer = None
+            obstacle_adapter = None
 
     status_gui = None
     live_plot = None

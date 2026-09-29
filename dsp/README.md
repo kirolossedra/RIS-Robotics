@@ -213,9 +213,11 @@ Settings are at the top of `collect_data_realtime.py`:
 - `VOTE_WINDOW_PREDICTIONS`: number of recent predictions used for smoothing.
 - `SHOW_DETECTION_STATUS_GUI`, `LOCATION_LABEL`, and `SHOW_LIVE_PLOT`: display options.
 - `CLASSIFICATION_MODEL_PATH` and `PLACEHOLDER_MODE`: model configuration.
-- `--serial-port`, `--serial-baud`, `--serial-allow-placeholder`: command-line
-  only (no settings constants). Serial NRF output requires an explicit
-  port and is refused under placeholder inference without the
+- `--serial-baud`, `--serial-allow-placeholder`: command-line
+  only (no settings constants). The NRF TX console is discovered
+  automatically at startup (see `integration/serial_discovery.py`); no
+  manual port flag exists. Serial output additionally requires a
+  trained model: refused under placeholder inference without the
   development-only override flag.
 
 The radar SDK, NumPy, Matplotlib, Keras, TensorFlow, and Tkinter must be available

@@ -30,14 +30,21 @@ sees COM ports; the serial writer never sees spectra, tensors, or votes.
   tracking doubles as retry after failed writes), surfaces transport
   errors instead of hiding them, closes cleanly without emitting on
   shutdown.
+- [`serial_discovery.py`](serial_discovery.py) — automatic NRF/J-Link
+  console discovery from `pyserial` USB metadata (Windows + Linux):
+  candidate filtering, physical-board grouping, unambiguous-only
+  auto-selection (single board → lowest CDC interface). Read-only and
+  transmit-free; returns a device path or `None` (serial disabled).
 
 ## System boundary
 
 Upstream: voted-label strings from
 `../collect_data_realtime.py:record_frames()`. Downstream: NRF TX
-console bytes. Enabled only via an explicit `--serial-port` (refused
+console bytes. The console is discovered automatically at startup
+(`serial_discovery.py`); serial stays disabled on any ambiguity or
+failure. Serial output additionally requires a trained model: refused
 under placeholder inference without the explicit
-`--serial-allow-placeholder` development override).
+`--serial-allow-placeholder` development override.
 
 ## Tests
 

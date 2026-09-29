@@ -1240,3 +1240,36 @@ Turn new `dsp/` (real-time radar/DSP) into a seriously documented engineering su
 ### Next boundary
 
 Human LED/button cross-checks (transceiver); trained detector + serial trigger remain sensing-side future work.
+
+## 2026-09-28 — Automatic NRF serial discovery (no manual port, pushed)
+
+### User request
+
+Replace manual `--serial-port` with defensive auto-discovery (pyserial metadata, cross-platform, board grouping, silence-safe, transmit-free); unambiguous-only selection; non-fatal failures; placeholder protection intact; architecture separated; tests incl. app-continuity; docs updated; stale manual-port refs removed; no firmware/DSP-algorithm changes; live Windows metadata check; commit + push main.
+
+### Actions performed
+
+- Searched repo: no existing RSSI/serial-monitor utility exists (only an unrelated Bluetooth note) — implemented from the specified approach.
+- Created `dsp/integration/serial_discovery.py` (`find_nrf_boards` grouping by serial→location→HWID→device; candidate tokens j-link/jlink/segger/nrf/nordic/cmsis-dap + SEGGER VID 0x1366; bare "usb serial" deliberately insufficient — generic adapters share it; lowest-interface selection documented from MI_00 lab evidence; never raises/transmits).
+- Rewired `collect_data_realtime.py`: removed `--serial-port`; startup discovery with case diagnostics; open-failure downgrade (warn, no exit); placeholder gate preserved; kept `--serial-baud/--serial-allow-placeholder`.
+- Added `dsp/tests/test_serial_discovery.py` (12 tests: all required cases) + CLI-defaults test; fixed 2 test bugs of mine (frame-count expectation, duplicate def).
+- Restored `session-logs/` (entire directory missing from disk, not by me) via `git checkout` before committing — history preserved, deletion not committed.
+- Ran: 41/41 PASS; links PASS (19 files); live `list_ports` → zero ports (Case B, no transmission); diff reviewed; committed + pushed (below).
+
+### Results
+
+- Startup path: enumerate → filter → group → 0 (warn+disabled) / >1 (list+disabled) / 1 board (lowest CDC interface, noted) → placeholder gate → open-or-warn. DSP/GUI/recording never blocked; silence never rejects; no guessing (first/lowest COM explicitly refused).
+- Placeholder protection intact (refusal preserved; override still explicit/dev-only).
+
+### Changes made
+
+- Created: `serial_discovery.py`, `test_serial_discovery.py`. Modified: `collect_data_realtime.py`, both READMEs (integration + dsp), serial-integration-point, pipeline, system.md, control-signal-path.md, serial test (CLI). No firmware/algorithm changes.
+- Commit + push below. No hardware touched (boards absent).
+
+### Conclusion
+
+- Discovery is convenience-only: any failure degrades to serial-disabled with a clear warning; control can never flow to a guessed port.
+
+### Next boundary
+
+Human LED/button cross-checks; NRF serial smoke test when a TX board reappears; trained detector future work.

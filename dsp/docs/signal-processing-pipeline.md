@@ -130,7 +130,7 @@ flowchart TB
   handling, last-result retention; `pump()` runs Tk each frame.
 - Terminal: banner, config echo, per-frame counter, vote lines, save
   summary, error reports.
-- Serial branch (only with `--serial-port`): on each prediction,
+- Serial branch (when a console was auto-detected): on each prediction,
   `ObstacleStateAdapter.update(voted_name)` advances the CLEAR/OBSTACLE
   latch (unknown holds + fault print), and `SerialStateOutput.sync()`
   writes `OBS`/`CLR` on transitions only, retrying after failures;

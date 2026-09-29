@@ -243,8 +243,9 @@ SerialStateOutput.sync(adapter.state)             [dsp/integration/serial_output
         ↓ existing print + status_gui.update_status(voted_name) (unchanged)
 ```
 
-Enablement: `--serial-port <device>` (plus optional `--serial-baud`,
-default 115200). Without it DSP runs with serial disabled. Placeholder
+Enablement: automatic discovery at startup (`serial_discovery.py`;
+plus optional `--serial-baud`, default 115200). Without an unambiguous
+console, serial stays disabled. Placeholder
 gate: serial refused when `PLACEHOLDER_MODE` is on unless explicit
 `--serial-allow-placeholder` (development-only override, bannered in
 terminal). Port opened eagerly (fail fast); closed in `finally` with no
@@ -256,5 +257,5 @@ exit-time `CLR`. Failures: `sync()` returns False and prints the error;
 1. **No trained detector** — placeholder outputs must never drive serial; enforced by the startup gate (refused unless `--serial-allow-placeholder`).
 2. **Antenna geometry undocumented** — affects future model validity, not adapter shape.
 3. ~~**`pyserial` absent from `requirements.txt`**~~ — resolved: declared.
-4. **COM-port discovery** — no enumeration/selection logic exists yet; pass `--serial-port` explicitly.
+4. ~~**COM-port discovery**~~ — resolved: automatic discovery (`serial_discovery.py`); ambiguous cases disable serial with a warning.
 5. **GUI `ValueError` on unknown labels** — control path (adapter hold + fault print) runs before display; display behavior unchanged.

@@ -155,11 +155,11 @@ class SerialOutputTests(unittest.TestCase):
 
 
 class WiringTests(unittest.TestCase):
-    def test_cli_defaults_leave_serial_disabled(self):
+    def test_cli_defaults_leave_serial_to_discovery(self):
         from collect_data_realtime import parse_args
 
         args = parse_args([])
-        self.assertIsNone(args.serial_port)
+        self.assertFalse(hasattr(args, "serial_port"))
         self.assertEqual(args.serial_baud, 115200)
         self.assertFalse(args.serial_allow_placeholder)
 
