@@ -46,14 +46,17 @@ What DSP owns:
 What DSP does not own:
 
 - The radar hardware, the vendor SDK, the trained detector (the bundled
-  model is an explicit placeholder), the NRF/BLE/robot path, and any
-  serial `OBS`/`CLR` trigger — none is emitted by this code.
+  model is an explicit placeholder), NRF/BLE firmware, or the Jackal-side
+  control path.
 
 What leaves DSP:
 
 - On-screen detection state (`Person detected` / `Robot detected` /
   `Nothing detected`), terminal vote lines, and a saved
   `(frames, rx, chirps, samples)` `complex64` NumPy capture.
+- When serial integration is enabled and placeholder protection permits
+  it, transition-only `OBS`/`CLR` lines toward the NRF TX through
+  `dsp/integration/`.
 
 The DSP-to-NRF serial boundary is now implemented in `integration/` and wired into `record_frames()`. It remains **blocked for experiment control** while `PLACEHOLDER_MODE = True`, and the live DSP-to-physical-TX boundary still needs hardware validation. Jackal-side SSH/ROS actuation remains downstream work; see [`../system/implementation-status.md`](../system/implementation-status.md).
 
