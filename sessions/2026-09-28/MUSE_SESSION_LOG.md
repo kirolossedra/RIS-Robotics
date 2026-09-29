@@ -1139,3 +1139,36 @@ Restructure: `sessions/` parent with one folder per date containing everything f
 ### Next boundary
 
 User commits/pushes (or instructs); then human LED/button cross-checks.
+
+## 2026-09-28 — DSP subsystem documentation (industry-grade record, committed + pushed)
+
+### User request
+
+Turn new `dsp/` (real-time radar/DSP) into a seriously documented engineering subsystem: architecture fit, pipeline, per-algorithm math/physics, variable↔concept mapping, real-time behavior, parameters, limits/failures, validation evidence, code traceability — all derived from the actual implementation, no invented DSP, no implementation changes. Follow the prescribed hierarchy (dsp/README, docs/×5, algorithms/ each, tests index), update root README + system docs surgically, preserve history, validate everything, commit to main + push.
+
+### Actions performed
+
+- Inspected repo + full `dsp/` tree (4 sources, tests, requirements, existing README, .gitignore); read all source files fully; reviewed root/system/firmware/decision docs conventions; prior commit `01a5329` had already landed `dsp/` + all session work (tree was clean).
+- Environment probe: numpy 2.5.2/matplotlib/tkinter present; `ifxradarsdk`, `keras`, model file absent → suite unrunnable as-is.
+- Wrote minimal SDK stub (temp, outside repo) and executed the full hardware-free suite: 14/14 PASS in 0.715 s.
+- Created 11 docs (`dsp/README.md` rewrite preserving run/placeholder/settings content, `docs/` ×5, `algorithms/` index + 4 algorithm docs, `tests/README.md`); edited root `README.md` (DSP chain line + subsystem bullet) and `system/system.md` + `control-signal-path.md` (DSP in-repo note; serial trigger still pending).
+- Validated: link check PASS (16 files), TOCs present, source-vs-doc consistency review, `git diff` shows docs only, `__pycache__` removed; committed `e53fb1b` (+1488/−2, 16 files) and pushed (0/0 with origin).
+
+### Results
+
+- Pipeline discovered: metrics/chirp config → blocking acquisition → DC-remove/BH/range-FFT/Doppler-FFT/clutter-average+MTI/fftshift → antenna-sum + Capon elevation on pair [1, 2] → (32, 256) maps → non-overlapping 10-frame windows → per-frame z-norm → CNN-LSTM (placeholder) → rolling ≤5 vote → GUI/terminal + `.npy` save; azimuth commented out; live-plot diagnostic branch separate.
+- Key facts: 3 GHz BW → 0.05 m; λ ≈ 4.94 mm; d=λ/2 steering assumption; clutter weights 0.6/0.4 never reset; single-threaded loop, no drop accounting; no serial/ROS output exists in dsp/ (architecture gap preserved in docs); placeholder mapping + missing CLASS_NAMES[5] + real-part-only live plot + personal save path documented as limitations, not fixed.
+- Open gaps recorded: no timing/CPU/accuracy/false-alarm metrics; antenna geometry undocumented; no calibration/ground-truth data; requirements.txt incomplete; model file absent.
+
+### Changes made
+
+- Docs only: 4 modified (root README, system.md, control-signal-path.md, dsp/README rewrite), 12 created. No implementation change (`git diff` clean of code).
+- Committed `e53fb1b` to main and pushed to origin (verified 0 ahead/behind, clean tree).
+
+### Conclusion
+
+- DSP is now a first-class documented subsystem with traceable, evidence-graded docs; the serial-trigger integration ask is unchanged and explicitly still open.
+
+### Next boundary
+
+Human LED/button cross-checks (transceiver); trained detector + serial trigger remain sensing-side future work.
