@@ -164,18 +164,29 @@ Radar -> serial -> TX Transceiver -> BLE (LE 1M or Coded PHY S=8)
 
 SSH forwarding, ROS arbitration, and Jackal `cmd_vel` control are downstream context and are intentionally not implemented here.
 
-## Validation status (2026-09-28): BUILD ONLY, NO FLASH
+## Validation status — 2026-09-28
 
-One image builds for `nrf52833dk/nrf52833` (NCS v3.2.3, `ble-runtime-0004`):
+The earlier build-only state has been superseded by physical bring-up and a two-board smoke test.
 
-```powershell
-west build -p always -b nrf52833dk/nrf52833 firmware/transceiver -d build/transceiver
-```
+### Proven on hardware
 
-Outside an NCS terminal, set `ZEPHYR_BASE=C:/ncs/v3.2.3/zephyr`, `ZEPHYR_TOOLCHAIN_VARIANT=zephyr`, `ZEPHYR_SDK_INSTALL_DIR=<toolchain>/opt/zephyr-sdk`, extend `PATH` with the toolchain `opt/bin` and `mingw64/bin` (git) directories, and pass `-z C:/ncs/v3.2.3/zephyr` to `west`. No `EXTRA_CONF_FILE` role selection exists anymore.
+- Two physical boards were identified by FICR as **nRF52833** and programmed with the single `nrf52833dk/nrf52833` image.
+- Correct-target boot was observed without the earlier wrong-target pre-main heap BusFault.
+- The two-board default Coded S=8 path passed: repeated `OBS` produced one RX `OBS`, repeated `CLR` produced one RX `CLR`, and a later obstacle episode produced one new RX `OBS`.
+- UART host integration on both sides and RX duplicate suppression were exercised in that smoke test.
 
-Verified without hardware: the single image links (`build/transceiver/transceiver/zephyr/zephyr.hex` 326104 B, `.elf`, `merged.hex` 326048 B; FLASH 115916 B / 22.11 % of 512 KB, RAM 21988 B / 16.78 % of 128 KB), generated `.config` confirms `CONFIG_SOC_NRF52833` / board `nrf52833dk/nrf52833` with `CONFIG_BT` + broadcaster + observer, `CONFIG_GPIO`, `CONFIG_SERIAL`/`UART_CONSOLE`, coded-PHY and coding-selection support, blink interval, and no remaining `TRANSCEIVER_ROLE_*` options. Heap verification from the ELF: `_end`=`0x200055E4`, aligned base `0x200055E8`, size `0x1AA18`, end exactly `0x20020000` — no address exceeds physical SRAM end `0x2001FFFF`. The linked binary contains both the TX advertise path and the RX scan path. `tests/test_protocol.c` was compile-checked only — with the Zephyr SDK ARM cross-compiler (`arm-zephyr-eabi-gcc` 12.2.0, `-c -Wall -Wextra -std=c99`, exit 0, no warnings) producing an object file; it was never linked or executed, and no host-targeted C compiler (gcc/cl/clang) exists on this machine — so the vectors remain validated by inspection against `src/protocol.h` until the test can run on a host with a compiler.
+Evidence:
 
-No board was flashed, erased, recovered, or connected to during this development.
+- [`validation/2026-09-28-single-board-bringup.md`](validation/2026-09-28-single-board-bringup.md)
+- [`validation/2026-09-28-two-board-smoke-test.md`](validation/2026-09-28-two-board-smoke-test.md)
 
-Still requires two physical nRF52833 DKs: same-image TX ↔ RX packet exchange, `OBS`/`CLR` propagation, duplicate suppression over the air, Button-2 role switching and Button-1 PHY switching on real hardware, LE Coded S=8 operation over the real radio link, UART host integration in both roles, LED behavior on hardware, and range/reliability characterization.
+### Still open
+
+- human confirmation of the role-LED blink patterns;
+- dedicated Button-2 runtime role-switch validation;
+- coordinated Button-1 S=8 <-> 1M over-air switching;
+- `rx_logger.py` JSONL run on the physical RX side;
+- range/reliability characterization and longer-run behavior;
+- host execution of `tests/test_protocol.c` on a machine with a host C compiler.
+
+Firmware validation stops at the transport boundary. DSP-driven TX input, SSH forwarding, ROS arbitration, and Jackal motion control are system-integration work documented under [`../system/`](../system/).

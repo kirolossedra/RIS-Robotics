@@ -64,7 +64,7 @@ Radar/RIS object detection
         → command arbitration above joystick control
 ```
 
-The sensing-team boundary is deliberately narrow: the team needs to expose the relevant object-detection event in its existing processing pipeline and allow that event to be emitted over serial. BLE transport, the robot-side bridge, and ROS stop arbitration are handled on the robotics side.
+The current DSP implementation now exposes the stabilized voted label and includes the obstacle-state/serial adapter in `dsp/integration/`. Experiment use is still blocked by placeholder inference, and the live DSP-to-TX hardware boundary remains to be validated. The BLE transport is implemented and hardware-smoke-tested; the robot-side bridge and ROS stop arbitration remain downstream design work.
 
 The active system is dual-robot: the Husky is the **Dummy Robot** moving in the conflicting corridor, while the Jackal is the **Controlled Robot** in the controlled corridor. Jackal motion still has two authorities—normal `cmd_vel` and higher-priority STOP—with distance-to-corner used only as gating context. `DISTANCE_THRESHOLD` and the distance source/method remain TBD.
 

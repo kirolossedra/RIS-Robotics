@@ -55,9 +55,7 @@ What leaves DSP:
   `Nothing detected`), terminal vote lines, and a saved
   `(frames, rx, chirps, samples)` `complex64` NumPy capture.
 
-The Jackal-side control path consumes nothing from DSP automatically yet;
-bridging a detection to the NRF TX serial input remains integration work
-(see `system/control-signal-path.md` Ask 1/2).
+The DSP-to-NRF serial boundary is now implemented in `integration/` and wired into `record_frames()`. It remains **blocked for experiment control** while `PLACEHOLDER_MODE = True`, and the live DSP-to-physical-TX boundary still needs hardware validation. Jackal-side SSH/ROS actuation remains downstream work; see [`../system/implementation-status.md`](../system/implementation-status.md).
 
 ## Pipeline overview
 

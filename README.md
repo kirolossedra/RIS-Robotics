@@ -1,64 +1,88 @@
 # RIS-Robotics
 
-Integration project connecting the existing Radar/RIS sensing pipeline to a dual-robot corridor experiment: a Clearpath Husky acts as the **Dummy Robot** in the conflicting corridor, while a Clearpath Jackal is the **Controlled Robot** in the controlled corridor.
+Repository for the Radar/RIS-to-robot experiment that turns a sensed corridor condition into a compact control state and, ultimately, a locally enforced Jackal STOP.
 
-## Current architecture
+**System documentation status:** audited against the implementation on 2026-09-28. The repository is currently validated through the two-board NRF/BLE transport; the Jackal actuation path is not yet implemented end to end.
 
-The system now has two distinct robot roles. The **Husky = Dummy Robot**: it moves in the conflicting / hidden corridor as the physical obstacle observed by Radar/RIS. The **Jackal = Controlled Robot**: it remains manually teleoperated in the controlled corridor through `cmd_vel` and is subject to the higher-priority experimental safety STOP.
+## Contents
 
-The communication chain remains intentionally compact:
+- [System at a glance](#system-at-a-glance)
+- [Current implementation status](#current-implementation-status)
+- [Documentation](#documentation)
+- [Repository areas](#repository-areas)
+- [System invariants](#system-invariants)
+- [What remains](#what-remains)
+
+## System at a glance
 
 ```text
-Husky / Dummy Robot in conflicting corridor
-  → Radar/RIS sensing
-  → Real-time DSP: acquisition → range/Doppler/Capon maps → CNN-LSTM → vote → display
-  → Central Laptop derives obstacle/safety state
-  → USB → NRF Transceiver (TX role) → BLE (Coded S=8 default, 1M switchable) → NRF Transceiver (RX role) → USB
-  → Jackal-side computer
-  → Ethernet / ROS control interface
-  → safety gating + command arbitration
-  → Jackal / Controlled Robot
+Husky / Dummy Robot
+    -> Radar/RIS sensing
+    -> central laptop DSP
+       acquisition -> maps -> CNN-LSTM -> rolling vote
+       -> obstacle-state adapter -> OBS/CLR serial
+    -> nRF52833 Transceiver (TX role)
+    -> BLE extended advertising
+       Coded S=8 default; LE 1M switchable
+    -> nRF52833 Transceiver (RX role)
+    -> OBS/CLR serial
+    -> Jackal-side control bridge                  [PENDING]
+    -> persistent SSH / robot-side ROS interface   [PENDING]
+    -> distance-gated local STOP arbitration       [PENDING]
+    -> Jackal / Controlled Robot
 ```
 
-Both NRF boards run the same Transceiver firmware image: TX and RX are runtime roles switched on-device with Button 2 (every board boots as TX), and Button 1 switches the BLE PHY between Coded S=8 and LE 1M. Details are in [`firmware/`](firmware/) and [`ble-runtime-0004`](decision-logs/ble-runtime-0004-transceiver-runtime-roles-single-image.md).
+The two robots have separate roles: the **Husky is the Dummy Robot** in the conflicting/hidden corridor; the **Jackal is the Controlled Robot** in the controlled corridor.
 
-STOP is enforced only when the conflicting corridor is unsafe **and** the Jackal is sufficiently close to the corner. Distance-to-corner is contextual gating state, not a third motion-control authority. `DISTANCE_THRESHOLD` and the distance-to-corner source/method remain **TBD**.
+## Current implementation status
+
+| Area | Repository reality | Validation state |
+|---|---|---|
+| Radar acquisition + DSP feature pipeline | Implemented | Software-tested; real sensing code exists |
+| CNN-LSTM classification path | Implemented structurally, but `PLACEHOLDER_MODE = True` | Not valid for experiment control until the trained detector and label mapping are installed |
+| Voted label -> obstacle state -> serial `OBS`/`CLR` | Implemented in `dsp/integration/` and wired into `record_frames()` | Hardware-free tests exist; serial-to-NRF validation from the live DSP path remains open |
+| Serial device discovery | Implemented; unambiguous auto-detection only | Ambiguous/failure cases disable serial instead of guessing |
+| Shared NRF Transceiver firmware | Implemented as one nRF52833 image with runtime TX/RX roles | Correct-target boot validated on hardware |
+| NRF TX -> BLE -> NRF RX | Implemented | **Two-board smoke test PASS** on 2026-09-28 for `OBS`/`CLR`, duplicate suppression, S=8, and UART integration |
+| RX JSONL logger | Implemented | Standalone hardware run still open |
+| Jackal-side serial -> persistent SSH bridge | Design accepted | Not implemented in repository |
+| ROS STOP arbitration | Design accepted | Not implemented in repository |
+| Distance-to-corner source + `DISTANCE_THRESHOLD` | Required by design | **TBD** |
+| Full sensing -> Jackal STOP chain | Target architecture | Not yet integrated or validated end to end |
 
 ## Documentation
 
-- [`system/system.md`](system/system.md) — full-system architecture, responsibility boundaries, current assumptions, status, and bigger picture.
-- [`system/control-signal-path.md`](system/control-signal-path.md) — detailed control-signal journey, exact sensing-team ask, robotics-side deliverables, dependencies, and integration plan.
-- [`decision-logs/`](decision-logs/) — design decisions, including BLE transport, Jackal platform selection, and the serial-to-SSH-to-ROS control bridge.
-- [`firmware/`](firmware/) — single-image Transceiver firmware with runtime TX/RX roles, RX serial logger, build, flashing, and smoke-test instructions.
-- [`dsp/`](dsp/) — real-time Infineon-radar acquisition, range/Doppler/Capon feature maps, CNN-LSTM person/robot display, raw-capture recording, and the implemented (software-tested, hardware-unvalidated) serial obstacle bridge. Produces the on-screen detection state; see [`system/control-signal-path.md`](system/control-signal-path.md) Ask 1/2 for the remaining sensing-team items.
+The system-level control center is [`system/README.md`](system/README.md). It separates **implemented**, **validated**, **blocked**, **design-only**, and **TBD** work instead of treating the intended end state as current behavior.
 
-The software STOP path is part of the research integration and does not replace the Jackal's physical emergency stop or normal supervised laboratory safety procedures.
+Key system records:
 
-## Informal working TODO
+- [`system/architecture.md`](system/architecture.md) — physical/logical topology, responsibilities, boundaries, and non-goals.
+- [`system/interfaces.md`](system/interfaces.md) — contracts between DSP, serial, BLE, RX, and the not-yet-implemented Jackal side.
+- [`system/runtime-and-state.md`](system/runtime-and-state.md) — state machines, latches, gating semantics, and runtime ownership.
+- [`system/implementation-status.md`](system/implementation-status.md) — implementation maturity ledger tied to repository evidence.
+- [`system/validation.md`](system/validation.md) — what has actually been proven and what has not.
+- [`system/failure-modes-and-safety.md`](system/failure-modes-and-safety.md) — failure semantics and unresolved safety-critical policies.
+- [`system/integration-plan.md`](system/integration-plan.md) — remaining work in dependency order.
+- [`decision-logs/`](decision-logs/) — why architecture choices were made; decision acceptance does not imply implementation completion.
 
-This is intentionally a lightweight day-to-day list rather than a formal project plan. Detailed architecture and decisions remain in the documents above.
+## Repository areas
 
-### Today — Wednesday, 2026-09-16
+- [`dsp/`](dsp/) — radar acquisition, feature construction, CNN-LSTM adapter, rolling vote, GUI, obstacle-state adapter, serial discovery/output, and tests.
+- [`firmware/`](firmware/) — shared Transceiver firmware, host RX logger, build/flash instructions, and dated validation evidence.
+- [`robotics/`](robotics/) — robot-side connectivity, access, controller, and troubleshooting records.
+- [`system/`](system/) — repository-wide system documentation and integration truth.
+- [`decision-logs/`](decision-logs/) — active and superseded architecture decisions.
+- [`sessions/`](sessions/) — dated engineering-session evidence; historical logs are not the current architecture authority.
 
-- [x] Implement the standalone shared **Transceiver TX → BLE → Transceiver RX** firmware path for the two available NRF boards.
-- [x] Make the BLE path carry the latched `OBS` / `CLR` state using coded S=8 advertising.
-- [ ] Hardware-smoke-test the robot-side Transceiver RX serial output on the two physical boards.
-- [ ] If time permits, prepare the small laptop-side serial listener / persistent-SSH bridge so the received serial event can later cause a command to execute on the Jackal onboard computer.
-- [ ] Keep the sensing-team questions and answer placeholders in [`system/control-signal-path.md`](system/control-signal-path.md) ready to fill in during the team session.
+## System invariants
 
-### Tomorrow — Thursday, 2026-09-17
+- A missing, unknown, failed, or silent sensing result is **not** equivalent to corridor clear.
+- Placeholder inference must not drive experiment control; the code refuses serial output in placeholder mode unless a development-only override is explicitly used.
+- The NRF link carries compact `OBS`/`CLR` state, not raw radar data.
+- The Jackal-side STOP priority must be enforced locally by robot-side arbitration; message arrival order is not a safety policy.
+- Distance-to-corner is gating context, not a third motion authority.
+- The software STOP is an experiment mechanism and does not replace the physical emergency stop or supervised lab procedure.
 
-**With the Radar/RIS team:**
+## What remains
 
-- [ ] Confirm whether the object-detection result is accessible in the existing Radar/RIS processing pipeline as currently assumed.
-- [ ] Identify the **exact pipeline block/module** where the relevant detection event becomes available.
-- [ ] Record what that event/state actually looks like and how it can be accessed.
-- [ ] Confirm where a **serial-output step** can be inserted and whether there are any serial/interface constraints we need to respect.
-- [ ] Fill their answers directly into the dedicated response placeholders in the control-signal integration document.
-- [ ] If the insertion point is immediately usable, connect the real detection event to the serial trigger feeding the NRF TX board and exercise as much of the sensing-to-BLE path as practical during the session.
-
-**On the robotics side:**
-
-- [ ] Continue the independent Jackal integration: **NRF RX → laptop serial → persistent SSH over Ethernet → Jackal onboard ROS**.
-- [ ] Begin or continue the ROS-side STOP arbitration so the Radar/RIS-derived STOP can override normal joystick velocity commands.
-- [ ] Keep the final end-to-end integration as the last step once the sensing-side trigger and robot-side STOP path are both ready independently.
+The next system milestone is not more BLE work. It is to make the sensing output experiment-valid, validate the DSP-to-TX serial boundary on hardware, then implement and validate the Jackal-side bridge, local ROS arbitration, and distance gate before attempting the full end-to-end run.
