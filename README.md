@@ -59,6 +59,8 @@ Key system records:
 - [`system/architecture.md`](system/architecture.md) — physical/logical topology, responsibilities, boundaries, and non-goals.
 - [`system/interfaces.md`](system/interfaces.md) — contracts between DSP, serial, BLE, RX, and the not-yet-implemented Jackal side.
 - [`system/runtime-and-state.md`](system/runtime-and-state.md) — state machines, latches, gating semantics, and runtime ownership.
+- [`system/requirements-and-traceability.md`](system/requirements-and-traceability.md) — system requirements tied to implementation and evidence.
+- [`system/configuration-and-operations.md`](system/configuration-and-operations.md) — supported configuration, runtime defaults, and pre-integration checks.
 - [`system/implementation-status.md`](system/implementation-status.md) — implementation maturity ledger tied to repository evidence.
 - [`system/validation.md`](system/validation.md) — what has actually been proven and what has not.
 - [`system/failure-modes-and-safety.md`](system/failure-modes-and-safety.md) — failure semantics and unresolved safety-critical policies.
