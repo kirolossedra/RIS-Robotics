@@ -36,6 +36,8 @@ An item can be both implemented and blocked, or implemented and not yet validate
 - [`architecture.md`](architecture.md) — system topology, boundaries, responsibilities, and non-goals.
 - [`interfaces.md`](interfaces.md) — exact inter-subsystem contracts and which contracts are still proposals.
 - [`runtime-and-state.md`](runtime-and-state.md) — state ownership, latches, transitions, and STOP gating.
+- [`requirements-and-traceability.md`](requirements-and-traceability.md) — explicit system requirements tied to implementation and evidence.
+- [`configuration-and-operations.md`](configuration-and-operations.md) — supported configuration, runtime defaults, and pre-integration operational checks.
 - [`implementation-status.md`](implementation-status.md) — current maturity ledger with implementation evidence.
 - [`validation.md`](validation.md) — verification/validation evidence and remaining proof gaps.
 - [`failure-modes-and-safety.md`](failure-modes-and-safety.md) — known failures, current behavior, unresolved policies, and safety boundaries.
