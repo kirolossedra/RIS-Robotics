@@ -1072,6 +1072,36 @@ Put debug evidence into a singular date folder along with the Muse session.
 
 User commits/pushes (or instructs); then human LED/button cross-checks.
 
+## 2026-09-28 — Removed session-logs/ directory per instruction
+
+### User request
+
+Remove `session-logs/` ("useless folder"), fix references, then commit and push everything.
+
+### Actions performed
+
+- `git rm -r session-logs/` (single file `2026-09-17.md`; directory already absent from disk once before and restored then — this time removal is explicit user instruction).
+- Removed the root `README.md` bullet linking to it; updated the evidence cell in `dsp/docs/validation-and-performance.md` to reference `robot-runtime-0002` with an honest note (session narrative gone, acquisition decision preserved).
+- Session-log history entries naming `session-logs/` left intact as history.
+- Verified diff scope, committed, pushed (below). No hardware touched.
+
+### Results
+
+- `session-logs/` gone from tree and index; no dangling references outside protected history.
+
+### Changes made
+
+- Deleted: `session-logs/2026-09-17.md`. Modified: root `README.md`, validation doc, this log.
+- Commit + push below. No other changes.
+
+### Conclusion
+
+- Tree clean; history rule yielded to explicit user instruction for this path only.
+
+### Next boundary
+
+Human LED/button cross-checks; NRF serial smoke test when a TX board reappears.
+
 ## 2026-09-28 — nRF52833 image flashed; application provably runs (main loop confirmed)
 
 ### User request

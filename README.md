@@ -31,7 +31,6 @@ STOP is enforced only when the conflicting corridor is unsafe **and** the Jackal
 - [`decision-logs/`](decision-logs/) — design decisions, including BLE transport, Jackal platform selection, and the serial-to-SSH-to-ROS control bridge.
 - [`firmware/`](firmware/) — single-image Transceiver firmware with runtime TX/RX roles, RX serial logger, build, flashing, and smoke-test instructions.
 - [`dsp/`](dsp/) — real-time Infineon-radar acquisition, range/Doppler/Capon feature maps, CNN-LSTM person/robot display, raw-capture recording, and the implemented (software-tested, hardware-unvalidated) serial obstacle bridge. Produces the on-screen detection state; see [`system/control-signal-path.md`](system/control-signal-path.md) Ask 1/2 for the remaining sensing-team items.
-- [`session-logs/2026-09-17.md`](session-logs/2026-09-17.md) — chronological record of the 2026-09-17 engineering session.
 
 The software STOP path is part of the research integration and does not replace the Jackal's physical emergency stop or normal supervised laboratory safety procedures.
 
