@@ -57,7 +57,7 @@ Radar / RIS processing pipeline
        USB serial
             |
             v
-   Jackal-side laptop
+   Controlled Robot-side laptop
 ```
 
 Two NRF boards are already available, so no additional BLE hardware is currently expected. The TX-to-RX BLE portion is targeted to be operational before the 2026-09-17 team session.
@@ -84,13 +84,13 @@ The sensing team needs to confirm:
 1. where the required object-detection event is available in the current pipeline; and
 2. whether a small serial-output step can be inserted there so the event can be delivered to the NRF transmitter.
 
-The sensing team does not need to implement the BLE receiver or Jackal-side ROS control path.
+The sensing team does not need to implement the BLE receiver or Controlled Robot-side ROS control path.
 
 ## Robot-side consequence
 
-BLE terminates at the NRF receiver; it does not directly control the Jackal.
+BLE terminates at the NRF receiver; it does not directly control the Controlled Robot.
 
-The receiver feeds the Jackal-side laptop over USB serial. Under the current robot-side architecture, that laptop can maintain a persistent SSH session over Ethernet to the Jackal onboard computer. A received STOP event can therefore cause a ROS-side action to execute on the Jackal without requiring ROS to be installed on the laptop itself.
+The receiver feeds the Controlled Robot-side laptop over USB serial. Under the current robot-side architecture, that laptop can maintain a persistent SSH session over Ethernet to the Controlled Robot onboard computer. A received STOP event can therefore cause a ROS-side action to execute on the Controlled Robot without requiring ROS to be installed on the laptop itself.
 
 The priority rule is not implemented by making a ROS topic intrinsically "higher priority." A ROS-side arbiter/mux/supervisor must enforce STOP authority over normal joystick velocity commands.
 
@@ -104,4 +104,4 @@ This software path is part of the research experiment and does not replace the r
 
 ## Resulting design principle
 
-The sensing computer decides **whether the relevant conflicting condition has been detected**. BLE carries only that compact result. The Jackal's ROS control layer retains local authority to enforce the resulting stop.
+The sensing computer decides **whether the relevant conflicting condition has been detected**. BLE carries only that compact result. The Controlled Robot's ROS control layer retains local authority to enforce the resulting stop.

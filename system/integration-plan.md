@@ -7,7 +7,7 @@
 - [Stage 1 — make sensing semantics experiment-valid](#stage-1--make-sensing-semantics-experiment-valid)
 - [Stage 2 — close the DSP-to-TX hardware boundary](#stage-2--close-the-dsp-to-tx-hardware-boundary)
 - [Stage 3 — finish NRF host-side validation](#stage-3--finish-nrf-host-side-validation)
-- [Stage 4 — implement the Jackal bridge](#stage-4--implement-the-jackal-bridge)
+- [Stage 4 — implement the Controlled Robot bridge](#stage-4--implement-the-jackal-bridge)
 - [Stage 5 — implement local ROS arbitration](#stage-5--implement-local-ros-arbitration)
 - [Stage 6 — implement distance gating](#stage-6--implement-distance-gating)
 - [Stage 7 — validate failures before the full demo](#stage-7--validate-failures-before-the-full-demo)
@@ -24,7 +24,7 @@ This plan orders remaining work by dependency. It avoids spending effort on down
 trained detector
  -> live DSP serial boundary
  -> confirmed NRF host behavior
- -> Jackal serial/SSH bridge
+ -> Controlled Robot serial/SSH bridge
  -> local ROS arbitration
  -> distance source + threshold
  -> loss/stale-state policies
@@ -58,19 +58,19 @@ trained detector
 
 **Exit:** the chosen experiment transport mode and host output are reproducible.
 
-## Stage 4 — implement the Jackal bridge
+## Stage 4 — implement the Controlled Robot bridge
 
-- Add the RX serial consumer on the Jackal-side host.
+- Add the RX serial consumer on the Controlled Robot-side host.
 - Maintain one persistent SSH session over Ethernet rather than reconnecting per event.
 - Make connection state observable.
 - Define reconnect and state-resynchronization behavior explicitly.
 - Keep the bridge responsible for transport, not motion-policy precedence.
 
-**Exit:** `OBS`/`CLR` can be delivered reproducibly to the Jackal onboard computer without making the laptop the arbiter.
+**Exit:** `OBS`/`CLR` can be delivered reproducibly to the Controlled Robot onboard computer without making the laptop the arbiter.
 
 ## Stage 5 — implement local ROS arbitration
 
-- Identify the actual Jackal ROS command path and existing teleoperation topic flow.
+- Identify the actual Controlled Robot ROS command path and existing teleoperation topic flow.
 - Insert a local supervisor/mux/arbiter so STOP has explicit precedence over normal `cmd_vel`.
 - Test STOP assertion/release independently of Radar/RIS.
 - Verify message timing cannot bypass precedence.
@@ -92,7 +92,7 @@ Exercise serial disconnect, BLE loss/silence, SSH loss, stale distance, unknown 
 
 ## Stage 8 — end-to-end integration
 
-Run the complete Husky -> Radar/RIS -> DSP -> NRF -> Jackal chain under supervised lab conditions. Capture timestamps at meaningful boundaries so latency and failure behavior can be reconstructed.
+Run the complete Dummy Robot -> Radar/RIS -> DSP -> NRF -> Controlled Robot chain under supervised lab conditions. Capture timestamps at meaningful boundaries so latency and failure behavior can be reconstructed.
 
 ## Exit criteria
 

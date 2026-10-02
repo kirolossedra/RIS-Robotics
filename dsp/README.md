@@ -46,7 +46,7 @@ What DSP owns:
 What DSP does not own:
 
 - The radar hardware, the vendor SDK, the trained detector (the bundled
-  model is an explicit placeholder), NRF/BLE firmware, or the Jackal-side
+  model is an explicit placeholder), NRF/BLE firmware, or the Controlled Robot-side
   control path.
 
 What leaves DSP:
@@ -58,7 +58,7 @@ What leaves DSP:
   it, transition-only `OBS`/`CLR` lines toward the NRF TX through
   `dsp/integration/`.
 
-The DSP-to-NRF serial boundary is now implemented in `integration/` and wired into `record_frames()`. It remains **blocked for experiment control** while `PLACEHOLDER_MODE = True`, and the live DSP-to-physical-TX boundary still needs hardware validation. Jackal-side SSH/ROS actuation remains downstream work; see [`../system/implementation-status.md`](../system/implementation-status.md).
+The DSP-to-NRF serial boundary is now implemented in `integration/` and wired into `record_frames()`. It remains **blocked for experiment control** while `PLACEHOLDER_MODE = True`, and the live DSP-to-physical-TX boundary still needs hardware validation. Controlled Robot-side SSH/ROS actuation remains downstream work; see [`../system/implementation-status.md`](../system/implementation-status.md).
 
 ## Pipeline overview
 

@@ -28,7 +28,7 @@ In RX mode incoming serial bytes are never consumed as commands; in TX mode only
 
 ## Rationale
 
-Two physical boards no longer need two firmware images, two build configurations, or role-specific flashing: flash the same `.hex` on both, press Button 2 once on the Jackal-side board, and the link roles are assigned. Keeping selection on physical buttons (not in the serial protocol) preserves the `OBS`/`CLR` safety-path discipline, and keeping PHY orthogonal to role preserves the `ble-runtime-0003` link-comparison use without rebuilds.
+Two physical boards no longer need two firmware images, two build configurations, or role-specific flashing: flash the same `.hex` on both, press Button 2 once on the Controlled Robot-side board, and the link roles are assigned. Keeping selection on physical buttons (not in the serial protocol) preserves the `OBS`/`CLR` safety-path discipline, and keeping PHY orthogonal to role preserves the `ble-runtime-0003` link-comparison use without rebuilds.
 
 ## Consequences
 

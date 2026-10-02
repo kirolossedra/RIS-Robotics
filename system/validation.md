@@ -21,7 +21,7 @@ This document lists evidence, not intentions. A successful build is not called a
 3. **Single-device bring-up** — target boots and core interfaces are alive.
 4. **Link/subsystem hardware test** — multiple components interoperate across the real boundary.
 5. **Integrated subsystem test** — upstream implementation drives downstream hardware.
-6. **End-to-end system test** — sensing event changes Jackal motion through the complete safety path.
+6. **End-to-end system test** — sensing event changes Controlled Robot motion through the complete safety path.
 
 The repository has reached level 4 for the NRF transport, but not level 6 for the complete experiment.
 
@@ -48,7 +48,7 @@ The run observed TX `COM14` and RX `COM8`; those are dated observations, not per
 
 ## Robot-side evidence
 
-`../robotics/` contains real hardware/connectivity troubleshooting. Those records establish operational knowledge, but they do **not** validate the target Jackal serial->SSH->ROS STOP path.
+`../robotics/` contains real hardware/connectivity troubleshooting. Those records establish operational knowledge, but they do **not** validate the target Controlled Robot serial->SSH->ROS STOP path.
 
 ## Not yet proven
 
@@ -63,10 +63,10 @@ The run observed TX `COM14` and RX `COM8`; those are dated observations, not per
 - local ROS STOP precedence over joystick commands;
 - distance measurement/gating;
 - stale/loss behavior;
-- complete sensing->Jackal STOP latency and reliability.
+- complete sensing->Controlled Robot STOP latency and reliability.
 
 ## End-to-end acceptance record
 
 **Current state: no end-to-end acceptance run exists.**
 
-A future acceptance record should capture revisions, physical topology, selected PHY, trained model identity, distance source/threshold, timestamps at meaningful boundaries, Jackal command output, failure-injection results, and physical emergency-stop supervision.
+A future acceptance record should capture revisions, physical topology, selected PHY, trained model identity, distance source/threshold, timestamps at meaningful boundaries, Controlled Robot command output, failure-injection results, and physical emergency-stop supervision.

@@ -30,7 +30,7 @@ This is the repository-wide maturity ledger. It answers two separate questions f
 | LE 1M runtime mode | Implemented | Dedicated coordinated switch test open | Implemented, not fully hardware-validated | firmware |
 | RX duplicate suppression | Implemented | **Two-board smoke PASS** | Validated for repeated OBS/CLR episode | two-board validation |
 | RX JSONL logger | Implemented | Dedicated hardware run open | Implemented, not hardware-validated | `firmware/tools/rx_logger.py` |
-| Jackal Ethernet/SSH reachability | Operational work documented | Not a production bridge | Supporting capability only | `robotics/`, decision log |
+| Controlled Robot Ethernet/SSH reachability | Operational work documented | Not a production bridge | Supporting capability only | `robotics/`, decision log |
 | Persistent serial->SSH bridge | Not implemented | None | Design only | `robot-ros-0001` |
 | ROS safety arbitration | Not implemented | None | Design only | `robot-ros-0001` |
 | Distance-to-corner source | Not selected | None | TBD | system/decision docs |
@@ -63,4 +63,4 @@ The accepted persistent-SSH bridge and local ROS arbitration are architecture de
 
 ## Definition of system-ready
 
-The project should not be described as end-to-end ready until the experiment-valid detector, live DSP->TX boundary, chosen NRF transport, Jackal bridge, local arbitration, distance gate, failure policies, and full-chain validation have all been completed with evidence.
+The project should not be described as end-to-end ready until the experiment-valid detector, live DSP->TX boundary, chosen NRF transport, Controlled Robot bridge, local arbitration, distance gate, failure policies, and full-chain validation have all been completed with evidence.

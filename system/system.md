@@ -20,4 +20,4 @@ This filename is retained so historical links do not break. The former monolithi
 
 ## Current state summary
 
-The repository is validated through the nRF52833 TX -> BLE Coded S=8 -> RX link. DSP serial integration exists in code but experiment actuation is blocked by placeholder inference. The Jackal serial/SSH bridge, ROS arbitration, and distance-to-corner gate are not yet implemented.
+The repository is validated through the nRF52833 TX -> BLE Coded S=8 -> RX link. DSP serial integration exists in code but experiment actuation is blocked by placeholder inference. The Controlled Robot serial/SSH bridge, ROS arbitration, and distance-to-corner gate are not yet implemented.

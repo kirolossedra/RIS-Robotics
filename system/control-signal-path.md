@@ -26,8 +26,8 @@ BLOCKED / NOT YET INTEGRATED:
 placeholder model prevents experiment-valid DSP control
 
 DESIGN ONLY:
-RX serial -> persistent SSH -> Jackal ROS arbiter
-          -> distance-gated STOP -> Jackal
+RX serial -> persistent SSH -> Controlled Robot ROS arbiter
+          -> distance-gated STOP -> Controlled Robot
 
 TBD:
 distance-to-corner source and DISTANCE_THRESHOLD

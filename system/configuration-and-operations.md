@@ -27,7 +27,7 @@ This document collects the cross-subsystem configuration that an operator or int
 | BLE alternate | LE 1M, runtime-switchable |
 | DSP serial selection | automatic discovery from USB metadata; unambiguous candidate required |
 | DSP classifier state | placeholder mode remains enabled in current implementation |
-| Jackal bridge | not implemented |
+| Controlled Robot bridge | not implemented |
 | ROS arbiter | not implemented |
 
 The earlier nRF52840 target was a hardware-identification error and caused an SRAM overrun before `main()`. Current instructions and validation use nRF52833 only.
@@ -86,7 +86,7 @@ Before any full-system attempt, confirm:
 - live DSP -> physical TX transition has been validated;
 - two-board link is on the intended common PHY;
 - RX host path is producing the expected transitions;
-- Jackal Ethernet/SSH path is reachable;
+- Controlled Robot Ethernet/SSH path is reachable;
 - local ROS STOP arbitration is implemented and tested independently;
 - distance source/threshold are implemented and calibrated;
 - communication-loss behavior is defined;
@@ -98,8 +98,8 @@ If any downstream control item above is absent, the run is a subsystem/integrati
 
 - No experiment-valid trained detector is represented by the current placeholder-mode configuration.
 - No complete DSP-to-TX hardware validation exists yet.
-- No Jackal serial-to-SSH bridge exists in repository code.
-- No Jackal ROS arbitration implementation exists.
+- No Controlled Robot serial-to-SSH bridge exists in repository code.
+- No Controlled Robot ROS arbitration implementation exists.
 - No distance-to-corner implementation or threshold exists.
 - No end-to-end recovery/liveness policy exists.
 - No full-chain acceptance run exists.
