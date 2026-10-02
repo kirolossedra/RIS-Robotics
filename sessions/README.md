@@ -3,6 +3,7 @@
 One folder per engineering date, each self-contained: the session log,
 a full investigation summary, and that date's debug evidence.
 
+- [`2026-10-02/`](2026-10-02/) — Husky 1 bring-up and Joystick 3 Bluetooth recurrence. Start with its [`README.md`](2026-10-02/README.md).
 - [`2026-09-28/`](2026-09-28/) — J-Link BSOD recovery, transceiver
   firmware, nRF52833 bring-up, two-board link. Start with its
   [`README.md`](2026-09-28/README.md).
