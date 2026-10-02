@@ -4,11 +4,11 @@
 **Previous ID:** `DL-005`
 **Status:** Accepted  
 **Date:** 2026-09-17  
-**Scope:** Husky experimental role and robot-detectability configuration
+**Scope:** Current Dummy Robot hardware binding and robot-detectability configuration
 
 ## Decision
 
-The Husky is retained in the active architecture as the **Dummy Robot**: a repeatable moving physical obstacle in the conflicting / hidden corridor for Radar/RIS sensing and acquisition.
+The current `DUMMY_ROBOT` hardware binding is the **Clearpath Husky A200**. In this experiment configuration it provides the repeatable moving physical obstacle in the conflicting / hidden corridor for Radar/RIS sensing and acquisition.
 
 The 2026-09-17 acquisition session also established an experiment-configuration decision: the preferred sensing height was retained because lowering the sensing setup improved robot visibility but negatively affected human detection. Instead, bags were placed **on top of the Husky** as an experimental intervention intended to increase the target's effective physical height and improve its apparent radar visibility / apparent RCS. This does not claim a guaranteed or quantified electromagnetic RCS increase.
 
@@ -37,14 +37,14 @@ This phase does **not** require:
 
 Those robotics-control concerns belong to later troubleshooting and integration work and should not block the first Radar footprint measurements.
 
-## Relationship to the Jackal decision
+## Relationship to the Controlled Robot binding
 
-`robot-runtime-0001` now records the dual-robot architecture. The roles are complementary rather than mutually exclusive:
+`robot-runtime-0001` records the selected physical platforms, while `robot-runtime-0003` makes the roles architectural abstractions. The current bindings are:
 
-- **Husky = Dummy Robot** in the conflicting corridor.
-- **Jackal = Controlled Robot** in the controlled corridor.
+- `DUMMY_ROBOT` → **Clearpath Husky A200** in the conflicting corridor.
+- `CONTROLLED_ROBOT` → **Clearpath Jackal** in the controlled corridor.
 
-The Husky does not participate in the Jackal motion-control path.
+The current Dummy Robot hardware does not participate in the Controlled Robot motion-control path.
 
 ## Consequence
 

@@ -2,9 +2,18 @@
 
 **ID:** `robot-runtime-0001`
 **Previous ID:** `DL-002`
-**Status:** Accepted — current architecture  
+**Status:** Accepted — current hardware binding; architectural hard-coding superseded by `robot-runtime-0003`  
 **Date:** 2026-09-17  
 **Scope:** Robot roles in the RIS Robotics experiment
+
+## Current interpretation
+
+This record preserves the decision that the available Clearpath platforms occupy the two experiment roles. As of `robot-runtime-0003`, those platforms are **bindings**:
+
+- `DUMMY_ROBOT` / Dummy Robot → Clearpath Husky A200
+- `CONTROLLED_ROBOT` / Controlled Robot → Clearpath Jackal
+
+The role names are now the architecture. The product names below remain intentionally preserved because this record documents the hardware-selection history.
 
 ## Current decision
 

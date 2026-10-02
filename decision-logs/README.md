@@ -43,9 +43,10 @@ Each record carries its authoritative `ID` in its heading and preserves its lega
 | `ble-runtime-0005` | [Transceiver role and radio activity indicators](ble-runtime-0005-transceiver-activity-indicators.md) | Superseded by `ble-runtime-0006` for TX indication; RX packet indication retained | — |
 | `ble-runtime-0006` | [Shared TX state input and obstacle indication](ble-runtime-0006-shared-tx-state-and-obstacle-indication.md) | Accepted — current TX state input and indicator | — |
 | `ble-runtime-0007` | [RX reception stub modes](ble-runtime-0007-rx-reception-stub-modes.md) | Accepted — RX test input and mode indication | — |
-| `robot-runtime-0001` | [Dual-robot architecture](robot-runtime-0001-dual-robot-architecture.md) | Accepted — current architecture | `DL-002` |
-| `robot-runtime-0002` | [Husky Dummy Robot and Radar acquisition](robot-runtime-0002-husky-radar-obstacle-footprint.md) | Accepted | `DL-005` |
-| `robot-ros-0001` | [Jackal control bridge (serial → SSH → ROS)](robot-ros-0001-jackal-control-serial-ssh-ros.md) | Accepted for the initial implementation | `DL-003` |
+| `robot-runtime-0001` | [Dual-robot hardware binding](robot-runtime-0001-dual-robot-architecture.md) | Accepted — current hardware binding; architectural naming superseded by `robot-runtime-0003` | `DL-002` |
+| `robot-runtime-0002` | [Current Dummy Robot hardware (Husky A200) and Radar acquisition](robot-runtime-0002-husky-radar-obstacle-footprint.md) | Accepted — hardware-specific | `DL-005` |
+| `robot-runtime-0003` | [Robot-role abstraction and hardware binding](robot-runtime-0003-robot-role-abstraction-and-hardware-binding.md) | Accepted — current architecture rule | — |
+| `robot-ros-0001` | [Controlled Robot control bridge (serial → SSH → ROS)](robot-ros-0001-jackal-control-serial-ssh-ros.md) | Accepted for the initial implementation | `DL-003` |
 | `robot-hardware-0001` | [Husky power and troubleshooting conventions](robot-hardware-0001-husky-power-troubleshooting-conventions.md) | Accepted | `DL-006` |
 
 ## Experiment context
@@ -61,14 +62,14 @@ Radar/RIS object detection
         → BLE
         → NRF RX
         → serial
-        → Jackal-side laptop
+        → Controlled Robot-side laptop
         → persistent SSH over Ethernet
-        → Jackal ROS safety input
+        → Controlled Robot ROS safety input
         → command arbitration above joystick control
 ```
 
 The current DSP implementation now exposes the stabilized voted label and includes the obstacle-state/serial adapter in `dsp/integration/`. Experiment use is still blocked by placeholder inference, and the live DSP-to-TX hardware boundary remains to be validated. The BLE transport is implemented and hardware-smoke-tested; the robot-side bridge and ROS stop arbitration remain downstream design work.
 
-The active system is dual-robot: the Husky is the **Dummy Robot** moving in the conflicting corridor, while the Jackal is the **Controlled Robot** in the controlled corridor. Jackal motion still has two authorities—normal `cmd_vel` and higher-priority STOP—with distance-to-corner used only as gating context. `DISTANCE_THRESHOLD` and the distance source/method remain TBD.
+The active architecture is dual-role: `DUMMY_ROBOT` / **Dummy Robot** occupies the conflicting corridor and `CONTROLLED_ROBOT` / **Controlled Robot** occupies the controlled corridor. The current bindings are Clearpath Husky A200 and Clearpath Jackal respectively. Controlled Robot motion still has two authorities—normal `cmd_vel` and higher-priority STOP—with distance-to-corner used only as gating context. `DISTANCE_THRESHOLD` and the distance source/method remain TBD.
 
 These records capture architecture choices around that integration while keeping the primary research contribution focused on Radar/RIS detection rather than autonomous navigation.
