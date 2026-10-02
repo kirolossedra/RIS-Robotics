@@ -22,8 +22,9 @@
  * firmware falls back to the previous side when possible, and the role LEDs
  * never show a normal TX/RX pattern unless that role's transport is running.
  *
- * LEDs (board aliases): TX blinks led0+led1, RX blinks led0 (continuous
- * role indication). led2 shows the PHY mode: on = Coded S=8, off = 1M.
+ * LEDs (board aliases): led1 stays on for TX role, led0 stays on for RX role.
+ * led0 pulses during TX advertising; led1 pulses on valid RX packets. led2
+ * shows the PHY mode: on = Coded S=8, off = 1M.
  *
  * Pure protocol/mode logic lives in protocol.h so host-side tests reuse it.
  */
@@ -78,6 +79,7 @@
 
 /* Button debounce interval: edges closer than this are one press. */
 #define BUTTON_DEBOUNCE_MS 200
+#define ACTIVITY_PULSE_MS 80
 
 /*
  * Service Data AD value: 7bb4f91d-521f-4ee6-a9c8-43dca4bb6e11 in BLE
@@ -124,6 +126,7 @@ static struct gpio_callback phy_button_cb;
 static struct gpio_callback role_button_cb;
 static atomic_t phy_switch_request = ATOMIC_INIT(0);
 static atomic_t role_switch_request = ATOMIC_INIT(0);
+static atomic_t rx_activity_request = ATOMIC_INIT(0);
 static int64_t last_phy_button_ms;
 static int64_t last_role_button_ms;
 
@@ -146,17 +149,11 @@ static int leds_init(void)
 	return 0;
 }
 
-/* Continuous role indication: TX blinks two LEDs, RX blinks one.
- * Suspended while no role transport is running (transition failure). */
-static void leds_toggle(void)
+/* One steady LED identifies the active role; the other reports radio activity. */
+static void role_leds_update(void)
 {
-	if (!transport_active) {
-		return;
-	}
-	(void)gpio_pin_toggle_dt(&led0);
-	if (mode.role == TR_ROLE_TX) {
-		(void)gpio_pin_toggle_dt(&led1);
-	}
+	(void)gpio_pin_set_dt(&led0, transport_active && mode.role == TR_ROLE_RX);
+	(void)gpio_pin_set_dt(&led1, transport_active && mode.role == TR_ROLE_TX);
 }
 
 /* PHY indicator: led2 on = Coded S=8, off = 1M. Never touches role LEDs. */
@@ -331,6 +328,12 @@ static bool parse_ad(struct bt_data *data, void *user_data)
 	}
 
 	state = data->data[17];
+	if (state != STATE_CLEAR && state != STATE_OBSTACLE) {
+		return false;
+	}
+
+	/* Mark every valid Transceiver packet, including repeated state packets. */
+	atomic_set(&rx_activity_request, 1);
 
 	switch (rx_dedup_update(&received_state, state)) {
 	case RX_EMIT_OBS:
@@ -532,13 +535,17 @@ static void tx_poll_uart(void)
 
 static void transceiver_run(void)
 {
-	int64_t next_blink = k_uptime_get() + CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
+	int64_t next_tx_pulse = k_uptime_get() + CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
+	int64_t activity_until = 0;
 
 	for (;;) {
+		int64_t now;
+
 		if (role_switch_poll()) {
 			role_switch_requested();
-			next_blink = k_uptime_get() +
-				     CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
+			next_tx_pulse = k_uptime_get() +
+					CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
+			activity_until = 0;
 		}
 
 		if (phy_switch_poll()) {
@@ -551,10 +558,18 @@ static void transceiver_run(void)
 			tx_poll_uart();
 		}
 
-		if (k_uptime_get() >= next_blink) {
-			leds_toggle();
-			next_blink = k_uptime_get() + CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
+		now = k_uptime_get();
+		if (mode.role == TR_ROLE_TX && transport_active && now >= next_tx_pulse) {
+			activity_until = now + ACTIVITY_PULSE_MS;
+			next_tx_pulse = now + CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
 		}
+		if (atomic_cas(&rx_activity_request, 1, 0) &&
+		    mode.role == TR_ROLE_RX && transport_active) {
+			activity_until = now + ACTIVITY_PULSE_MS;
+		}
+		role_leds_update();
+		(void)gpio_pin_set_dt(mode.role == TR_ROLE_TX ? &led0 : &led1,
+				      transport_active && now < activity_until);
 
 		k_sleep(K_MSEC(5));
 	}
@@ -592,6 +607,7 @@ int main(void)
 		return err;
 	}
 	transport_active = true;
+	role_leds_update();
 	transceiver_run();
 
 	return 0;

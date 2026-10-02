@@ -47,9 +47,11 @@ Button behavior:
 
 LED intent:
 
-- TX: two role LEDs blink;
-- RX: one role LED blinks;
-- separate PHY LED on = Coded S=8, off = 1M.
+- TX: `led1` stays on to identify the role; `led0` pulses while advertising is active;
+- RX: `led0` stays on to identify the role; `led1` pulses whenever a valid Transceiver packet arrives, including duplicate state packets;
+- `led2` is the PHY indicator: on = Coded S=8, off = 1M.
+
+See [`ble-runtime-0005`](../decision-logs/ble-runtime-0005-transceiver-activity-indicators.md) for the accepted role and activity LED decision.
 
 The role/PHY logic is implemented; the complete human-observed LED and dedicated button-validation matrix remains open.
 

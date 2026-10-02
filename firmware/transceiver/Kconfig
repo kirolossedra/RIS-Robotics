@@ -8,7 +8,7 @@ menu "RIS Transceiver options"
 # build-time role selection here.
 
 config TRANSCEIVER_BLINK_INTERVAL_MS
-	int "Role-identification LED blink interval in milliseconds"
+	int "TX activity LED pulse interval in milliseconds"
 	default 500
 	range 100 5000
 

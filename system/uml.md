@@ -357,12 +357,12 @@ sequenceDiagram
     alt scan starts
         RX-->>Loop: success
         Loop->>Loop: commit active role RX
-        Loop->>LEDs: one-role-LED pattern
+        Loop->>LEDs: steady RX role LED; packet LED pulses on receive
     else scan fails
         RX-->>Loop: error
         Loop->>TX: attempt previous TX restore
         alt restore succeeds
-            Loop->>LEDs: retain TX role indication
+            Loop->>LEDs: retain TX role LED and advertising pulses
         else restore fails
             Loop->>LEDs: role LEDs off
         end
