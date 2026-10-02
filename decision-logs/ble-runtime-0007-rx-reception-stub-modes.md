@@ -16,7 +16,7 @@ Button 3 (`sw2`) controls RX reception mode while the Transceiver is in the RX r
 
 The next Button 3 press after Forced OBS returns to Natural. Entering RX starts in Natural. Leaving RX discards the selected stub mode; re-entering RX starts in Natural. Button 3 keeps its existing TX behavior while TX is active.
 
-Natural and synthetic states use the same RX state-processing and duplicate-suppression path. Each valid natural or synthetic receive event requests the usual RX activity pulse on physical LED2 (Zephyr alias `led1`); the serial state output continues to emit only when the received state changes. During either forced mode, natural packets are ignored and cannot change the reported state.
+Natural and synthetic states use the same RX state-processing and duplicate-suppression path. Switching between receive modes does not reset the deduplication state: a synthetic transition from OBS to CLR is handled like the same natural state transition. Each valid natural or synthetic receive event requests the usual RX activity pulse on physical LED2 (Zephyr alias `led1`); the serial state output continues to emit only when the received state changes. During either forced mode, natural packets are ignored and cannot change the reported state.
 
 Physical LED4 (Zephyr alias `led3`) indicates the selected RX mode:
 
