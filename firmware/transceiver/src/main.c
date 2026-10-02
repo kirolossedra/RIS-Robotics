@@ -10,7 +10,8 @@
  * Runtime mode (see protocol.h):
  * - Button 1 (board alias sw0) toggles the BLE PHY: LE Coded S=8 <-> LE 1M.
  * - Button 2 (board alias sw1) toggles the operating role: TX <-> RX.
- * - Button 3 (board alias sw2) toggles the TX state: CLR <-> OBS in TX role.
+ * - Button 3 (board alias sw2) toggles TX state in TX and cycles RX receive
+ *   source: natural -> forced CLR -> forced OBS -> natural.
  * - Role and PHY are independent: switching one preserves the other.
  * - Boot default is TX + Coded S=8. No role persistence (no NVS/settings).
  *
@@ -25,7 +26,8 @@
  *
  * LEDs (board aliases): led1 stays on for TX role, led0 stays on for RX role.
  * In TX, led0 stays off for CLR and pulses while advertising OBS. In RX,
- * led1 pulses on valid packets. led2 shows PHY: on = Coded S=8, off = 1M.
+ * led1 pulses on receive events and led3 indicates forced receive mode.
+ * led2 shows PHY: on = Coded S=8, off = 1M.
  *
  * Pure protocol/mode logic lives in protocol.h so host-side tests reuse it.
  */
@@ -51,6 +53,7 @@
 #define LED0_NODE DT_ALIAS(led0)
 #define LED1_NODE DT_ALIAS(led1)
 #define LED2_NODE DT_ALIAS(led2)
+#define LED3_NODE DT_ALIAS(led3)
 #define SW0_NODE  DT_ALIAS(sw0)
 #define SW1_NODE  DT_ALIAS(sw1)
 #define SW2_NODE  DT_ALIAS(sw2)
@@ -65,6 +68,10 @@
 
 #if !DT_NODE_HAS_STATUS(LED2_NODE, okay)
 #error "The selected board must provide the led2 devicetree alias for PHY indication"
+#endif
+
+#if !DT_NODE_HAS_STATUS(LED3_NODE, okay)
+#error "The selected board must provide the led3 devicetree alias for RX stub indication"
 #endif
 
 #if !DT_NODE_HAS_STATUS(SW0_NODE, okay)
@@ -86,6 +93,13 @@
 /* Button debounce interval: edges closer than this are one press. */
 #define BUTTON_DEBOUNCE_MS 200
 #define ACTIVITY_PULSE_MS 80
+#define RX_STUB_MODE_BLINK_MS 500
+
+enum rx_stub_mode {
+	RX_STUB_NATURAL = 0,
+	RX_STUB_FORCE_CLEAR,
+	RX_STUB_FORCE_OBSTACLE,
+};
 
 /*
  * Service Data AD value: 7bb4f91d-521f-4ee6-a9c8-43dca4bb6e11 in BLE
@@ -100,6 +114,7 @@ static uint8_t service_data[18] = {
 static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 static const struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET(LED1_NODE, gpios);
 static const struct gpio_dt_spec phy_led = GPIO_DT_SPEC_GET(LED2_NODE, gpios);
+static const struct gpio_dt_spec rx_stub_led = GPIO_DT_SPEC_GET(LED3_NODE, gpios);
 static const struct gpio_dt_spec phy_button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
 static const struct gpio_dt_spec role_button = GPIO_DT_SPEC_GET(SW1_NODE, gpios);
 static const struct gpio_dt_spec state_button = GPIO_DT_SPEC_GET(SW2_NODE, gpios);
@@ -126,6 +141,8 @@ static size_t uart_len;
 
 /* RX runtime state. */
 static int8_t received_state = TRANSCEIVER_RX_UNKNOWN;
+static atomic_t rx_stub_mode = ATOMIC_INIT(RX_STUB_NATURAL);
+static struct k_spinlock rx_state_lock;
 
 static struct bt_le_ext_adv *advertiser;
 
@@ -142,7 +159,7 @@ static int64_t last_state_button_ms;
 
 static int leds_init(void)
 {
-	const struct gpio_dt_spec *leds[] = { &led0, &led1, &phy_led };
+	const struct gpio_dt_spec *leds[] = { &led0, &led1, &phy_led, &rx_stub_led };
 	size_t i;
 	int err;
 
@@ -171,6 +188,17 @@ static void phy_indicator_update(void)
 {
 	(void)gpio_pin_set_dt(&phy_led,
 			      (mode.phy == TR_PHY_CODED_S8) ? 1 : 0);
+}
+
+static void rx_stub_indicator_update(int64_t now)
+{
+	enum rx_stub_mode stub_mode = (enum rx_stub_mode)atomic_get(&rx_stub_mode);
+	bool on = (stub_mode == RX_STUB_FORCE_CLEAR) ||
+		  (stub_mode == RX_STUB_FORCE_OBSTACLE &&
+		   ((now / RX_STUB_MODE_BLINK_MS) % 2 == 0));
+
+	(void)gpio_pin_set_dt(&rx_stub_led,
+			      transport_active && mode.role == TR_ROLE_RX && on);
 }
 
 static void phy_button_isr(const struct device *dev, struct gpio_callback *cb,
@@ -282,6 +310,28 @@ static bool state_switch_poll(void)
 	return atomic_cas(&state_switch_request, 1, 0);
 }
 
+static void rx_observation_reset(bool reset_stub_mode)
+{
+	k_spinlock_key_t key = k_spin_lock(&rx_state_lock);
+
+	received_state = TRANSCEIVER_RX_UNKNOWN;
+	atomic_set(&rx_activity_request, 0);
+	if (reset_stub_mode) {
+		atomic_set(&rx_stub_mode, RX_STUB_NATURAL);
+	}
+	k_spin_unlock(&rx_state_lock, key);
+}
+
+static void rx_stub_mode_advance(void)
+{
+	k_spinlock_key_t key = k_spin_lock(&rx_state_lock);
+	enum rx_stub_mode next = (enum rx_stub_mode)
+		((atomic_get(&rx_stub_mode) + 1) % 3);
+
+	atomic_set(&rx_stub_mode, next);
+	k_spin_unlock(&rx_state_lock, key);
+}
+
 /* Coded S=8 advertising: explicit S=8 coding requirement (established). */
 static const struct bt_le_adv_param adv_params_coded = BT_LE_ADV_PARAM_INIT(
 	BT_LE_ADV_OPT_EXT_ADV |
@@ -306,6 +356,35 @@ static int advertise_state(uint8_t state)
 
 	service_data[17] = state;
 	return bt_le_ext_adv_set_data(advertiser, ad, ARRAY_SIZE(ad), NULL, 0);
+}
+
+/* Real and synthetic events share the same RX deduplication/output path. */
+static void rx_process_state(uint8_t state, bool synthetic)
+{
+	enum rx_emit emit;
+	k_spinlock_key_t key = k_spin_lock(&rx_state_lock);
+	enum rx_stub_mode stub_mode = (enum rx_stub_mode)atomic_get(&rx_stub_mode);
+
+	if ((!synthetic && stub_mode != RX_STUB_NATURAL) ||
+	    (synthetic && stub_mode == RX_STUB_NATURAL)) {
+		k_spin_unlock(&rx_state_lock, key);
+		return;
+	}
+
+	atomic_set(&rx_activity_request, 1);
+	emit = rx_dedup_update(&received_state, state);
+	k_spin_unlock(&rx_state_lock, key);
+
+	switch (emit) {
+	case RX_EMIT_OBS:
+		printk("OBS\n");
+		break;
+	case RX_EMIT_CLR:
+		printk("CLR\n");
+		break;
+	default:
+		break;
+	}
 }
 
 /* Serial OBS/CLR and Button 3 both write the same TX state latch. */
@@ -388,19 +467,8 @@ static bool parse_ad(struct bt_data *data, void *user_data)
 		return false;
 	}
 
-	/* Mark every valid Transceiver packet, including repeated state packets. */
-	atomic_set(&rx_activity_request, 1);
-
-	switch (rx_dedup_update(&received_state, state)) {
-	case RX_EMIT_OBS:
-		printk("OBS\n");
-		break;
-	case RX_EMIT_CLR:
-		printk("CLR\n");
-		break;
-	default:
-		break;
-	}
+	/* Forced modes discard real packets; Natural uses the shared RX path. */
+	rx_process_state(state, false);
 
 	return false;
 }
@@ -454,7 +522,7 @@ static int switch_to_rx(void)
 
 	tx_transport_stop();
 	uart_len = 0;
-	received_state = TRANSCEIVER_RX_UNKNOWN;
+	rx_observation_reset(true);
 
 	err = rx_transport_start();
 	if (err) {
@@ -489,14 +557,13 @@ static int switch_to_tx(void)
 	int err;
 
 	rx_transport_stop();
-	received_state = TRANSCEIVER_RX_UNKNOWN;
+	rx_observation_reset(true);
 	tx_state = STATE_CLEAR;
 	uart_flush();
 
 	err = tx_transport_start(tx_state);
 	if (err) {
 		printk("ERR adv-start %d\n", err);
-		received_state = TRANSCEIVER_RX_UNKNOWN;
 		if (rx_transport_start() == 0) {
 			transport_active = true;
 			return err;
@@ -533,7 +600,7 @@ static void switch_phy(void)
 	} else {
 		rx_transport_stop();
 		/* New PHY = new observation epoch; avoids stale state. */
-		received_state = TRANSCEIVER_RX_UNKNOWN;
+		rx_observation_reset(false);
 		if (rx_transport_start() != 0) {
 			printk("ERR scan-restart\n");
 		}
@@ -590,6 +657,7 @@ static void tx_poll_uart(void)
 static void transceiver_run(void)
 {
 	int64_t next_tx_pulse = k_uptime_get() + CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
+	int64_t next_rx_stub_event = 0;
 	int64_t activity_until = 0;
 
 	for (;;) {
@@ -599,6 +667,10 @@ static void transceiver_run(void)
 			role_switch_requested();
 			next_tx_pulse = k_uptime_get() +
 					CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
+			if (mode.role == TR_ROLE_RX) {
+				next_rx_stub_event = k_uptime_get() +
+						     CONFIG_TRANSCEIVER_RX_STUB_INTERVAL_MS;
+			}
 			activity_until = 0;
 		}
 
@@ -611,11 +683,30 @@ static void transceiver_run(void)
 		if (mode.role == TR_ROLE_TX) {
 			tx_poll_uart();
 		}
-		if (state_switch_poll() && mode.role == TR_ROLE_TX && transport_active) {
-			tx_state_toggle();
+		if (state_switch_poll() && transport_active) {
+			if (mode.role == TR_ROLE_TX) {
+				tx_state_toggle();
+			} else {
+				rx_stub_mode_advance();
+				next_rx_stub_event = k_uptime_get();
+				activity_until = 0;
+			}
 		}
 
 		now = k_uptime_get();
+		if (mode.role == TR_ROLE_RX && transport_active &&
+		    now >= next_rx_stub_event) {
+			enum rx_stub_mode stub_mode =
+				(enum rx_stub_mode)atomic_get(&rx_stub_mode);
+
+			if (stub_mode == RX_STUB_FORCE_CLEAR ||
+			    stub_mode == RX_STUB_FORCE_OBSTACLE) {
+				rx_process_state(stub_mode == RX_STUB_FORCE_CLEAR ?
+						 STATE_CLEAR : STATE_OBSTACLE, true);
+				next_rx_stub_event = now +
+					CONFIG_TRANSCEIVER_RX_STUB_INTERVAL_MS;
+			}
+		}
 		if (mode.role == TR_ROLE_TX && transport_active &&
 		    tx_state == STATE_OBSTACLE && now >= next_tx_pulse) {
 			activity_until = now + ACTIVITY_PULSE_MS;
@@ -628,6 +719,7 @@ static void transceiver_run(void)
 			activity_until = now + ACTIVITY_PULSE_MS;
 		}
 		role_leds_update();
+		rx_stub_indicator_update(now);
 		(void)gpio_pin_set_dt(mode.role == TR_ROLE_TX ? &led0 : &led1,
 				      transport_active && now < activity_until &&
 			      (mode.role == TR_ROLE_RX || tx_state == STATE_OBSTACLE));

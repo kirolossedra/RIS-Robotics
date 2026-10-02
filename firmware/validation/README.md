@@ -13,6 +13,9 @@ so a commit carrying these files is self-describing.
 - [`2026-09-28-two-board-smoke-test.md`](2026-09-28-two-board-smoke-test.md) —
   over-air TX → BLE → RX episode test (PASS), exact packet-byte layout,
   proven vs open items.
+- [`2026-10-02-rx-stub-mode-test.md`](2026-10-02-rx-stub-mode-test.md) —
+  RX Natural/Forced CLR/Forced OBS button and LED test; serial output and
+  over-air suppression remain open.
 
 ## Reusable tooling
 

@@ -44,17 +44,17 @@ Button behavior:
 
 - Button 1 / `sw0`: switch PHY between Coded S=8 and LE 1M;
 - Button 2 / `sw1`: switch runtime role TX <-> RX;
-- Button 3 / `sw2`: toggle the shared TX state between `CLR` and `OBS` in TX role.
+- Button 3 / `sw2`: toggle the shared TX state in TX role; cycle RX test source Natural -> Forced CLR -> Forced OBS -> Natural in RX role.
 
 LED intent:
 
 - TX: physical LED2 (`led1` alias) stays on for role; physical LED1 (`led0` alias) stays off for `CLR` and blinks for `OBS`;
-- RX: `led0` stays on to identify the role; `led1` pulses whenever a valid Transceiver packet arrives, including duplicate state packets;
+- RX: physical LED1 (`led0`) stays on for role; physical LED2 (`led1`) pulses on accepted natural or synthetic packets; physical LED4 (`led3`) is off in Natural, steady for Forced CLR, and blinks for Forced OBS;
 - physical LED3 (`led2` alias) is the PHY indicator: on = Coded S=8, off = 1M.
 
 See [`ble-runtime-0006`](../decision-logs/ble-runtime-0006-shared-tx-state-and-obstacle-indication.md) for the accepted shared TX state and LED decision.
 
-The shared TX `CLR`/`OBS` state, serial input, Button 3 toggle, and TX LED1 indication were physically checked; see [`firmware/validation/2026-10-02-shared-tx-state-led-test.md`](../firmware/validation/2026-10-02-shared-tx-state-led-test.md). RX packet indication, role switching, and PHY switching still need board-level confirmation.
+The shared TX state and LED behavior were physically checked in [`firmware/validation/2026-10-02-shared-tx-state-led-test.md`](../firmware/validation/2026-10-02-shared-tx-state-led-test.md). The RX stub LED cycle was checked in [`firmware/validation/2026-10-02-rx-stub-mode-test.md`](../firmware/validation/2026-10-02-rx-stub-mode-test.md); natural packet pulses, stub serial output, and over-the-air suppression still need confirmation.
 
 ## DSP control enablement
 

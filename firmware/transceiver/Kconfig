@@ -12,4 +12,9 @@ config TRANSCEIVER_BLINK_INTERVAL_MS
 	default 500
 	range 100 5000
 
+config TRANSCEIVER_RX_STUB_INTERVAL_MS
+	int "RX synthetic receive interval in milliseconds"
+	default 500
+	range 100 5000
+
 endmenu
