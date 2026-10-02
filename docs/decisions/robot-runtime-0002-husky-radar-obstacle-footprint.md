@@ -6,6 +6,13 @@
 **Date:** 2026-09-17  
 **Scope:** Current Dummy Robot hardware binding and robot-detectability configuration
 
+## Contents
+
+- [Decision](#decision)
+- [What is explicitly out of scope for this phase](#what-is-explicitly-out-of-scope-for-this-phase)
+- [Relationship to the Controlled Robot binding](#relationship-to-the-controlled-robot-binding)
+- [Consequence](#consequence)
+
 ## Decision
 
 The current `DUMMY_ROBOT` hardware binding is the **Clearpath Husky A200**. In this experiment configuration it provides the repeatable moving physical obstacle in the conflicting / hidden corridor for Radar/RIS sensing and acquisition.

@@ -6,6 +6,12 @@
 **Date:** 2026-09-17  
 **Scope:** Husky hardware troubleshooting and documentation
 
+## Contents
+
+- [Decision](#decision)
+- [Rationale](#rationale)
+- [Related records](#related-records)
+
 ## Decision
 
 The Husky onboard computer will use the robot's **12 V / 5 A user-power rail** as its computer power source. The 24 V rail is not part of the onboard-computer power path.

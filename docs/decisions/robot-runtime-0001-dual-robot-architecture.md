@@ -6,6 +6,22 @@
 **Date:** 2026-09-17  
 **Scope:** Robot roles in the RIS Robotics experiment
 
+## Contents
+
+- [Current interpretation](#current-interpretation)
+- [Current decision](#current-decision)
+- [Two-corridor model](#two-corridor-model)
+- [Consequences](#consequences)
+- [Archived Decisions](#archived-decisions)
+- [Context](#context)
+- [Initial decision — Clearpath Husky](#initial-decision-clearpath-husky)
+- [Revised decision — Clearpath Jackal](#revised-decision-clearpath-jackal)
+- [Husky vs Jackal tradeoffs](#husky-vs-jackal-tradeoffs)
+- [Operational access constraint](#operational-access-constraint)
+- [Physical setup advantage](#physical-setup-advantage)
+- [Why the decision changed](#why-the-decision-changed)
+- [Resulting experimental chain](#resulting-experimental-chain)
+
 ## Current interpretation
 
 This record preserves the decision that the available Clearpath platforms occupy the two experiment roles. As of `robot-runtime-0003`, those platforms are **bindings**:

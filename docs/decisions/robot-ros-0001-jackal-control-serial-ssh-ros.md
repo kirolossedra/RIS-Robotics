@@ -8,6 +8,16 @@
 
 **Current hardware binding:** `CONTROLLED_ROBOT` = Clearpath Jackal. This platform choice is a binding, not the architectural identity used by this control decision.
 
+## Contents
+
+- [Context](#context)
+- [Decision](#decision)
+- [Why the SSH session is persistent](#why-the-ssh-session-is-persistent)
+- [ROS control semantics](#ros-control-semantics)
+- [Bring-up versus stable control logic](#bring-up-versus-stable-control-logic)
+- [Consequences](#consequences)
+- [Resulting design principle](#resulting-design-principle)
+
 ## Context
 
 The Controlled Robot-side NRF board receives the Radar/RIS-derived control state over BLE and exposes that state over USB serial. The question is how to move that serial event into the Controlled Robot's ROS control path without unnecessarily installing and maintaining a second ROS environment on the laptop carried by the robot.

@@ -6,6 +6,17 @@
 **Date:** 2026-09-15; implementation detail updated 2026-09-16  
 **Scope:** Communication path carrying the Radar/RIS obstacle state to the mobile robot
 
+## Contents
+
+- [Context](#context)
+- [Initial decision — Wi-Fi](#initial-decision-wi-fi)
+- [Revised decision — BLE using Nordic NRF boards](#revised-decision-ble-using-nordic-nrf-boards)
+- [Why the decision changed](#why-the-decision-changed)
+- [Sensing-team boundary](#sensing-team-boundary)
+- [Robot-side consequence](#robot-side-consequence)
+- [Reliability consequence](#reliability-consequence)
+- [Resulting design principle](#resulting-design-principle)
+
 ## Context
 
 The experiment requires the Radar/RIS sensing system to notify the mobile robot when a moving person or obstacle is detected in the conflicting corridor. The robot is teleoperated; the sensing system is not responsible for navigation. Its role is to provide a compact safety state that can be consumed by a robot-side supervisor with higher control authority than normal velocity commands.

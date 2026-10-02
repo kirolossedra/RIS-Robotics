@@ -6,6 +6,12 @@
 **Date:** 2026-10-02  
 **Scope:** RX receive-path stubbing for board-level tests
 
+## Contents
+
+- [Decision](#decision)
+- [Rationale](#rationale)
+- [Consequences](#consequences)
+
 ## Decision
 
 Button 3 (`sw2`) controls RX reception mode while the Transceiver is in the RX role. It cycles through three states:

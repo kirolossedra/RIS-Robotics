@@ -7,6 +7,13 @@
 **Scope:** Transceiver firmware image, runtime roles, buttons, LEDs, boot behavior
 **Supersedes:** `ble-runtime-0002` (build-time roles; coded-only PHY), `ble-runtime-0003` (build-time-role statements)
 
+## Contents
+
+- [Decision](#decision)
+- [Role-switch execution](#role-switch-execution)
+- [Rationale](#rationale)
+- [Consequences](#consequences)
+
 ## Decision
 
 There is ONE Transceiver firmware image. The same binary operates as either TX or RX, and the board changes role at runtime using a physical button:

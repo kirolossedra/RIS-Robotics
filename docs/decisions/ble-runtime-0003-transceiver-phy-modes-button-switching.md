@@ -9,6 +9,12 @@
 
 > **Historical note:** This record is preserved unchanged below for traceability. Its PHY technical content (explicit S=8, 1M mode, Button-1 switching, `led2` indication, epoch reset, `ERR` diagnostics) remains valid and is incorporated into `ble-runtime-0004`. The statements assuming build-time TX/RX roles ("unchanged build-time TX/RX roles", "Both TX and RX images", "no runtime TX ↔ RX role switching") are superseded by the `ble-runtime-0004` single-image runtime-role architecture. See [ble-runtime-0004](ble-runtime-0004-transceiver-runtime-roles-single-image.md).
 
+## Contents
+
+- [Decision](#decision)
+- [Rationale](#rationale)
+- [Consequences](#consequences)
+
 ## Decision
 
 The shared Transceiver application supports two BLE PHY modes from one codebase with unchanged build-time TX/RX roles:

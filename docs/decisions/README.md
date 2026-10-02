@@ -2,6 +2,12 @@
 
 This directory records significant design decisions for the RIS Robotics experiment.
 
+## Contents
+
+- [Naming convention](#naming-convention)
+- [Index](#index)
+- [Experiment context](#experiment-context)
+
 ## Naming convention
 
 Every decision file follows the RIS decision identity format:

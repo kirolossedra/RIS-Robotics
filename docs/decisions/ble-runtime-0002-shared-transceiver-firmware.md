@@ -8,6 +8,13 @@
 
 > **Historical note:** This record is preserved unchanged below for traceability. Its "build-time roles" and "LE Coded PHY only" decisions are superseded: the Transceiver is now a single firmware image with runtime TX/RX roles (Button 2) and LE 1M + Coded S=8 PHY modes (Button 1). See [ble-runtime-0004](ble-runtime-0004-transceiver-runtime-roles-single-image.md). The protocol facts (latched OBS/CLR, RX dedup, startup-CLR suppression, UUID, version 1, TX starts CLEAR) remain valid.
 
+## Contents
+
+- [Decision](#decision)
+- [BLE PHY](#ble-phy)
+- [Protocol and boundary](#protocol-and-boundary)
+- [Consequences](#consequences)
+
 ## Decision
 
 The NRF subsystem is named the **Transceiver**. TX and RX are build-time roles of one Zephyr application and share one source tree; they are not separate firmware projects.

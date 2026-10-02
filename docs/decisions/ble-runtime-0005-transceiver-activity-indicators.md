@@ -7,6 +7,12 @@
 **Scope:** Transceiver role and BLE radio activity LEDs
 **Supersedes:** The LED indication clauses of `ble-runtime-0004`; runtime roles, boot behavior, and PHY selection remain unchanged.
 
+## Contents
+
+- [Decision](#decision)
+- [Rationale](#rationale)
+- [Consequences](#consequences)
+
 ## Decision
 
 The Transceiver LEDs must show both the active role and radio activity. Role indication uses a steady LED, and a separate LED pulses for radio activity:

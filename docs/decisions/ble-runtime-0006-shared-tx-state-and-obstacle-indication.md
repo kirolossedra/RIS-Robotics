@@ -7,6 +7,12 @@
 **Scope:** TX state ownership, manual test input, and TX state LED
 **Supersedes:** TX activity semantics in `ble-runtime-0005`; its RX packet-reception indication remains in force.
 
+## Contents
+
+- [Decision](#decision)
+- [Rationale](#rationale)
+- [Consequences](#consequences)
+
 ## Decision
 
 The TX state is one shared runtime variable, initialized to `CLR` at boot and when entering TX. Both input methods write that same state:
