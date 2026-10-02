@@ -17,7 +17,7 @@ This document turns the system architecture into explicit, reviewable requiremen
 | Requirement | Current implementation | Verification / evidence | Status |
 |---|---|---|---|
 | The Dummy Robot acts only as the moving target in the conflicting corridor. | Experiment architecture and robot decision records | Dummy Robot acquisition/troubleshooting records | Accepted system role |
-| The Controlled Robot is the Controlled Robot and remains normally teleoperated through its existing velocity-command path. | Robot architecture decision | Robot-side integrated validation not yet performed | Accepted; downstream integration pending |
+| The Controlled Robot remains normally teleoperated through its existing velocity-command path. | Robot architecture decision | Robot-side integrated validation not yet performed | Accepted; downstream integration pending |
 | The sensing computer reduces Radar/RIS observations to a semantic person/robot/nothing decision before control transport. | DSP acquisition, classifier adapter, rolling vote | DSP software tests | Implemented; classifier semantics blocked by placeholder model |
 | A stable person or robot decision maps to obstacle; stable nothing maps to clear. | `dsp/integration/obstacle_state.py` | `dsp/tests/test_serial_integration.py` | Implemented + software-tested |
 | Unknown or invalid semantic input must not manufacture a clear state. | Obstacle-state adapter holds previous state and faults | Serial-integration tests | Implemented + software-tested |

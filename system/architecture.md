@@ -152,7 +152,7 @@ flowchart TB
     RADAR -. semantic safety information eventually influences .-> J
 ```
 
-The Dummy Robot is a target, not a controlled actor in the safety path. The Controlled Robot is the controlled actor, but its safety intervention is not implemented yet. Keeping those roles separate prevents the robot-platform history from being mistaken for the active control architecture.
+The Dummy Robot is the sensing target rather than a motion-controlled actor in the safety path. The Controlled Robot is the actuator subject to the safety policy, but its safety intervention is not implemented yet. Keeping those roles separate prevents the robot-platform history from being mistaken for the active control architecture.
 
 ## Functional decomposition
 
@@ -459,7 +459,7 @@ The diagram expresses the intended inputs, not an implemented boolean circuit. T
 
 ### 13. Controlled Robot and physical safety boundary
 
-**Status:** Controlled Robot is the selected controlled robot; software safety path not yet integrated.
+**Status:** Controlled Robot role and current hardware binding are selected; software safety path not yet integrated.
 
 Software STOP is one experiment control mechanism. The physical emergency stop and supervised laboratory procedure remain independent safety controls.
 
