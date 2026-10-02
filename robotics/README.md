@@ -2,6 +2,12 @@
 
 This directory is the working area for robot-side connectivity, control, and troubleshooting in the RIS Robotics system.
 
+## Documentation authority
+
+This directory owns robot-specific connectivity, hardware troubleshooting, images, and implementation evidence. Stable robot architecture uses `DUMMY_ROBOT` and `CONTROLLED_ROBOT` under [`../docs/architecture/`](../docs/architecture/); product names remain correct here because these records concern physical hardware.
+
+The canonical troubleshooting index is [`../docs/troubleshooting/README.md`](../docs/troubleshooting/README.md).
+
 ## Scope
 
 Use this directory to document and debug robot-side hardware and connectivity, including:

@@ -1,5 +1,13 @@
 # Sessions
 
+## Authority boundary
+
+Sessions are chronological engineering history and may contain debug scripts, logs, temporary test conditions, and observations. They are evidence, not current architecture authority.
+
+Canonical current knowledge lives under [`../docs/`](../docs/). When a session changes architecture, feature maturity, a decision, or validation status, the corresponding canonical document must be updated separately.
+
+## Session layout
+
 One folder per engineering date, each self-contained: the session log,
 a full investigation summary, and that date's debug evidence.
 

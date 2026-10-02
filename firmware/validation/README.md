@@ -4,6 +4,14 @@ Dated, board-level evidence for the RIS Transceiver firmware. Each record
 states the procedure, the exact observed result, and what remains open —
 so a commit carrying these files is self-describing.
 
+
+## Evidence ownership
+
+This directory is the raw evidence store for firmware/hardware validation, including executable smoke-test tooling. Canonical claims and maturity synthesis live in [`../../docs/validation/`](../../docs/validation/).
+
+A stub-mode PASS validates the stub and the boundary exercised by it. It does not validate natural over-air reception unless that real path was part of the test.
+
+
 ## Records
 
 - [`2026-09-28-single-board-bringup.md`](2026-09-28-single-board-bringup.md) —

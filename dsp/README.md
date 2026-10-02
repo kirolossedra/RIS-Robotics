@@ -26,6 +26,18 @@ RIS-Robotics: its detection display is what a future serial trigger to the
 NRF Transceiver TX board will be derived from. That serial trigger is not
 implemented here yet — see [System boundary](#system-boundary).
 
+
+## Documentation authority
+
+This README owns DSP implementation entry points, dependencies, and local execution. Cross-system architecture and feature maturity are canonical under [`../docs/`](../docs/):
+
+- DSP subsystem architecture: [`../docs/architecture/subsystems/dsp.md`](../docs/architecture/subsystems/dsp.md)
+- sensing/control features: [`../docs/features/`](../docs/features/)
+- system interfaces: [`../docs/architecture/interactions/interfaces.md`](../docs/architecture/interactions/interfaces.md)
+- validation synthesis: [`../docs/validation/`](../docs/validation/)
+
+The detailed files in `dsp/docs/` remain algorithm/implementation documentation and must not become a competing whole-system architecture.
+
 ## System boundary
 
 What enters DSP:
@@ -58,7 +70,7 @@ What leaves DSP:
   it, transition-only `OBS`/`CLR` lines toward the NRF TX through
   `dsp/integration/`.
 
-The DSP-to-NRF serial boundary is now implemented in `integration/` and wired into `record_frames()`. It remains **blocked for experiment control** while `PLACEHOLDER_MODE = True`, and the live DSP-to-physical-TX boundary still needs hardware validation. Controlled Robot-side SSH/ROS actuation remains downstream work; see [`../system/implementation-status.md`](../system/implementation-status.md).
+The DSP-to-NRF serial boundary is now implemented in `integration/` and wired into `record_frames()`. It remains **blocked for experiment control** while `PLACEHOLDER_MODE = True`, and the live DSP-to-physical-TX boundary still needs hardware validation. Controlled Robot-side SSH/ROS actuation remains downstream work; see [`../docs/architecture/system/implementation-status.md`](../docs/architecture/system/implementation-status.md).
 
 ## Pipeline overview
 

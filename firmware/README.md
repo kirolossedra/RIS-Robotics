@@ -4,6 +4,20 @@
 
 The **Transceiver** is one nRF Connect SDK/Zephyr application built as a **single firmware image**. The same binary performs either side of the `OBS`/`CLR` protocol: TX and RX are **runtime roles** selected on-device with a physical button (`ble-runtime-0004`). There are no separate TX/RX images and no build-time role selection.
 
+
+## Documentation authority
+
+This README owns firmware build, flash, runtime controls, and implementation-specific behavior. Canonical cross-system knowledge lives under [`../docs/`](../docs/):
+
+- transport architecture: [`../docs/architecture/subsystems/wireless-transport.md`](../docs/architecture/subsystems/wireless-transport.md)
+- transport features/stubs: [`../docs/features/transport/`](../docs/features/transport/)
+- system interfaces: [`../docs/architecture/interactions/interfaces.md`](../docs/architecture/interactions/interfaces.md)
+- decisions: [`../docs/decisions/`](../docs/decisions/)
+- validation synthesis: [`../docs/validation/`](../docs/validation/)
+
+Raw dated hardware evidence remains in `firmware/validation/`.
+
+
 ## Supported setup
 
 The current, verified build target is the Nordic nRF52833 DK:
@@ -104,7 +118,7 @@ Pressing Button 2 (`sw1`, 200 ms debounce) toggles the TX/RX role. Button 3 (`sw
 
 ### LED indication
 
-On TX, physical LED2 (`led1` alias) indicates the role; physical LED1 (`led0` alias) is off for `CLR` and blinks for `OBS`. On RX, physical LED1 is the role indicator and physical LED2 pulses on each valid received packet, including duplicates. Physical LED3 (`led2` alias) shows the PHY: on = LE Coded S=8, off = LE 1M. See [`ble-runtime-0006`](../decision-logs/ble-runtime-0006-shared-tx-state-and-obstacle-indication.md).
+On TX, physical LED2 (`led1` alias) indicates the role; physical LED1 (`led0` alias) is off for `CLR` and blinks for `OBS`. On RX, physical LED1 is the role indicator and physical LED2 pulses on each valid received packet, including duplicates. Physical LED3 (`led2` alias) shows the PHY: on = LE Coded S=8, off = LE 1M. See [`ble-runtime-0006`](../docs/decisions/ble-runtime-0006-shared-tx-state-and-obstacle-indication.md).
 
 ## Build and flash
 

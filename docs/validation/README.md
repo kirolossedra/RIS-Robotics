@@ -28,7 +28,7 @@ This directory synthesizes what has actually been demonstrated. Raw evidence rem
 - robot hardware troubleshooting evidence: [`../../robotics/`](../../robotics/)
 - dated debug/session evidence: [`../../sessions/`](../../sessions/)
 
-A canonical whole-system validation synthesis will live in `system-validation.md`.
+The canonical whole-system validation synthesis is [`system-validation.md`](system-validation.md).
 
 ## Stub validation rule
 

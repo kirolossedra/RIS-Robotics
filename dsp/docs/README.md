@@ -5,6 +5,21 @@
 - [What each document answers](#what-each-document-answers)
 - [Suggested reading paths](#suggested-reading-paths)
 
+
+## Authority boundary
+
+This directory owns DSP-specific algorithms, parameters, execution details, and implementation evidence. It is **not** the canonical cross-system architecture.
+
+Use:
+
+- [`../../docs/architecture/subsystems/dsp.md`](../../docs/architecture/subsystems/dsp.md) for DSP's system responsibility;
+- [`../../docs/architecture/interactions/interfaces.md`](../../docs/architecture/interactions/interfaces.md) for cross-subsystem contracts;
+- [`../../docs/features/`](../../docs/features/) for capability/maturity;
+- [`../../docs/validation/`](../../docs/validation/) for validation synthesis.
+
+Stubbed test environments and placeholder inference must remain explicitly labeled; neither upgrades the real hardware/semantic path.
+
+
 ## What each document answers
 
 ```text
@@ -36,7 +51,7 @@ algorithms/
 | [`validation-and-performance.md`](validation-and-performance.md) | Evidence only: unit tests, live sessions, and everything not yet measured. |
 | [`algorithms/README.md`](algorithms/README.md) | Algorithm inventory in pipeline order with implementation links. |
 | [`state-machines.md`](state-machines.md) | Every control-relevant state machine (vote filter, buffers, clutter memory, GUI latch, NRF latch, proposed adapter) and the raw-vs-stable-vs-control distinction. |
-| [`serial-integration-point.md`](serial-integration-point.md) | Exact insertion point, obstacle-state FSM design, transition semantics, NRF contract, blockers. Serial code is not yet written. |
+| [`serial-integration-point.md`](serial-integration-point.md) | Exact insertion point, obstacle-state FSM design, transition semantics, NRF contract, blockers. Serial integration code now exists; hardware validation of the live DSP-to-physical-TX boundary remains pending. |
 
 ## Suggested reading paths
 
