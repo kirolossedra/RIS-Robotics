@@ -7,7 +7,7 @@
 - [Stage 1 — make sensing semantics experiment-valid](#stage-1--make-sensing-semantics-experiment-valid)
 - [Stage 2 — close the DSP-to-TX hardware boundary](#stage-2--close-the-dsp-to-tx-hardware-boundary)
 - [Stage 3 — finish NRF host-side validation](#stage-3--finish-nrf-host-side-validation)
-- [Stage 4 — implement the Controlled Robot bridge](#stage-4--implement-the-jackal-bridge)
+- [Stage 4 — implement the Controlled Robot bridge](#stage-4--implement-the-controlled-robot-bridge)
 - [Stage 5 — implement local ROS arbitration](#stage-5--implement-local-ros-arbitration)
 - [Stage 6 — implement distance gating](#stage-6--implement-distance-gating)
 - [Stage 7 — validate failures before the full demo](#stage-7--validate-failures-before-the-full-demo)

@@ -33,7 +33,16 @@ DUMMY_ROBOT / Dummy Robot
     -> CONTROLLED_ROBOT / Controlled Robot
 ```
 
-The two robots have separate roles: the **Dummy Robot is the Dummy Robot** in the conflicting/hidden corridor; the **Controlled Robot is the Controlled Robot** in the controlled corridor.
+The system architecture is expressed in stable robot roles rather than product names: **Dummy Robot** and **Controlled Robot**. Hardware selection is a binding of those roles, not the identity of the roles themselves.
+
+## Robot-role abstraction and current bindings
+
+| Architectural role | Canonical symbol | Current hardware binding |
+|---|---|---|
+| Dummy Robot | `DUMMY_ROBOT` | Clearpath Husky A200 |
+| Controlled Robot | `CONTROLLED_ROBOT` | Clearpath Jackal |
+
+Architecture, interfaces, requirements, and control semantics use the role names/symbols. Product names belong in hardware-binding decisions, deployment/operations, hardware validation, troubleshooting, and historical evidence.
 
 ## Current implementation status
 

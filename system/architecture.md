@@ -554,7 +554,7 @@ flowchart LR
         BRIDGE[Future bridge]
     end
 
-    subgraph JACKAL[Controlled Robot onboard computer]
+    subgraph CONTROLLED_ROBOT_HOST[Controlled Robot onboard computer]
         ROS[Future ROS arbiter]
     end
 
