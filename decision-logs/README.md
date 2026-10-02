@@ -42,6 +42,7 @@ Each record carries its authoritative `ID` in its heading and preserves its lega
 | `ble-runtime-0004` | [Single-image Transceiver with runtime roles](ble-runtime-0004-transceiver-runtime-roles-single-image.md) | Accepted — current architecture; LED behavior superseded by `ble-runtime-0005` | `DL-008` |
 | `ble-runtime-0005` | [Transceiver role and radio activity indicators](ble-runtime-0005-transceiver-activity-indicators.md) | Superseded by `ble-runtime-0006` for TX indication; RX packet indication retained | — |
 | `ble-runtime-0006` | [Shared TX state input and obstacle indication](ble-runtime-0006-shared-tx-state-and-obstacle-indication.md) | Accepted — current TX state input and indicator | — |
+| `ble-runtime-0007` | [RX reception stub modes](ble-runtime-0007-rx-reception-stub-modes.md) | Accepted — RX test input and mode indication | — |
 | `robot-runtime-0001` | [Dual-robot architecture](robot-runtime-0001-dual-robot-architecture.md) | Accepted — current architecture | `DL-002` |
 | `robot-runtime-0002` | [Husky Dummy Robot and Radar acquisition](robot-runtime-0002-husky-radar-obstacle-footprint.md) | Accepted | `DL-005` |
 | `robot-ros-0001` | [Jackal control bridge (serial → SSH → ROS)](robot-ros-0001-jackal-control-serial-ssh-ros.md) | Accepted for the initial implementation | `DL-003` |
