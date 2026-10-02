@@ -11,8 +11,8 @@
 Button 3 (`sw2`) controls RX reception mode while the Transceiver is in the RX role. It cycles through three states:
 
 1. **Natural** — process valid over-the-air Transceiver packets as usual.
-2. **Forced CLR** — ignore natural packets and synthesize a valid CLR reception every 500 ms.
-3. **Forced OBS** — ignore natural packets and synthesize a valid OBS reception every 500 ms.
+2. **Forced CLR** — ignore natural packets and synthesize a valid CLR reception at `CONFIG_TRANSCEIVER_RX_STUB_INTERVAL_MS` (500 ms by default).
+3. **Forced OBS** — ignore natural packets and synthesize a valid OBS reception at `CONFIG_TRANSCEIVER_RX_STUB_INTERVAL_MS` (500 ms by default).
 
 The next Button 3 press after Forced OBS returns to Natural. Entering RX starts in Natural. Leaving RX discards the selected stub mode; re-entering RX starts in Natural. Button 3 keeps its existing TX behavior while TX is active.
 
