@@ -1,109 +1,11 @@
-# Configuration and Operations
+# Compatibility Pointer — configuration and operations
 
 ## Contents
 
-- [Purpose](#purpose)
-- [Supported hardware and software configuration](#supported-hardware-and-software-configuration)
-- [Runtime defaults](#runtime-defaults)
-- [DSP control enablement](#dsp-control-enablement)
-- [Transceiver operation](#transceiver-operation)
-- [Pre-integration checks](#pre-integration-checks)
-- [Current operational limitations](#current-operational-limitations)
-- [Evidence retention](#evidence-retention)
+- [Current location](#current-location)
 
-## Purpose
+## Current location
 
-This document collects the cross-subsystem configuration that an operator or integrator must know. It does not replace subsystem build instructions or troubleshooting records.
+This path is retained for historical links. The canonical document moved to [`docs/operations/configuration.md`](../docs/operations/configuration.md).
 
-## Supported hardware and software configuration
-
-| Area | Current repository-supported configuration |
-|---|---|
-| NRF hardware | Nordic nRF52833 DK, verified from FICR on the two physical boards used in bring-up |
-| Zephyr board target | `nrf52833dk/nrf52833` |
-| nRF Connect SDK used in bring-up | v3.2.3 |
-| NRF host serial | 115200 baud, 8N1 |
-| BLE default | LE Coded S=8 extended advertising/scanning |
-| BLE alternate | LE 1M, runtime-switchable |
-| DSP serial selection | automatic discovery from USB metadata; unambiguous candidate required |
-| DSP classifier state | placeholder mode remains enabled in current implementation |
-| Controlled Robot bridge | not implemented |
-| ROS arbiter | not implemented |
-
-The earlier nRF52840 target was a hardware-identification error and caused an SRAM overrun before `main()`. Current instructions and validation use nRF52833 only.
-
-## Runtime defaults
-
-A freshly booted Transceiver starts:
-
-- role: **TX**;
-- PHY: **LE Coded S=8**;
-- state latch: **CLR**.
-
-Button behavior:
-
-- Button 1 / `sw0`: switch PHY between Coded S=8 and LE 1M;
-- Button 2 / `sw1`: switch runtime role TX <-> RX;
-- Button 3 / `sw2`: toggle the shared TX state in TX role; cycle RX test source Natural -> Forced CLR -> Forced OBS -> Natural in RX role.
-
-LED intent:
-
-- TX: physical LED2 (`led1` alias) stays on for role; physical LED1 (`led0` alias) stays off for `CLR` and blinks for `OBS`;
-- RX: physical LED1 (`led0`) stays on for role; physical LED2 (`led1`) pulses on accepted natural or synthetic packets; physical LED4 (`led3`) is off in Natural, steady for Forced CLR, and blinks for Forced OBS;
-- physical LED3 (`led2` alias) is the PHY indicator: on = Coded S=8, off = 1M.
-
-See [`ble-runtime-0006`](../decision-logs/ble-runtime-0006-shared-tx-state-and-obstacle-indication.md) for the accepted shared TX state and LED decision.
-
-The shared TX state and LED behavior were physically checked in [`firmware/validation/2026-10-02-shared-tx-state-led-test.md`](../firmware/validation/2026-10-02-shared-tx-state-led-test.md). The RX stub LED cycle was checked in [`firmware/validation/2026-10-02-rx-stub-mode-test.md`](../firmware/validation/2026-10-02-rx-stub-mode-test.md); natural packet pulses, stub serial output, and over-the-air suppression still need confirmation.
-
-## DSP control enablement
-
-The current DSP application may continue sensing when no unambiguous NRF serial console is found. In that case the serial control path is disabled rather than guessed.
-
-The classifier currently runs with `PLACEHOLDER_MODE = True`. Normal experiment serial output is refused in that state. The development-only placeholder override exists for integration testing and must not be treated as evidence that the classifier is suitable for real corridor control.
-
-There is no manual serial-port mode in the current DSP design; discovery is automatic by design.
-
-## Transceiver operation
-
-Build and flashing details live in [`../firmware/README.md`](../firmware/README.md). The system-level operational expectations are:
-
-1. use the correct nRF52833 target;
-2. flash the same image to both boards;
-3. allow one board to remain TX and switch the other to RX;
-4. keep both on the same PHY;
-5. ensure only the intended process owns each serial console;
-6. verify `OBS`/`CLR` transitions before connecting the path to robot motion.
-
-Windows COM numbers are not stable identities and changed during bring-up. Re-resolve the intended board/interface rather than encoding the dated `COM14`/`COM8` observations into automation.
-
-## Pre-integration checks
-
-Before any full-system attempt, confirm:
-
-- trained detector and label mapping are installed;
-- placeholder protection is no longer the reason serial is blocked;
-- live DSP -> physical TX transition has been validated;
-- two-board link is on the intended common PHY;
-- RX host path is producing the expected transitions;
-- Controlled Robot Ethernet/SSH path is reachable;
-- local ROS STOP arbitration is implemented and tested independently;
-- distance source/threshold are implemented and calibrated;
-- communication-loss behavior is defined;
-- the physical emergency stop is available and supervised.
-
-If any downstream control item above is absent, the run is a subsystem/integration test, not an end-to-end controlled-robot experiment.
-
-## Current operational limitations
-
-- No experiment-valid trained detector is represented by the current placeholder-mode configuration.
-- No complete DSP-to-TX hardware validation exists yet.
-- No Controlled Robot serial-to-SSH bridge exists in repository code.
-- No Controlled Robot ROS arbitration implementation exists.
-- No distance-to-corner implementation or threshold exists.
-- No end-to-end recovery/liveness policy exists.
-- No full-chain acceptance run exists.
-
-## Evidence retention
-
-Dated hardware evidence belongs under the owning subsystem's validation area or under `sessions/` when it is session-specific. System-level validation claims must link back to that evidence instead of copying unverifiable conclusions into multiple files.
+Do not add new system knowledge here; update the canonical document instead.
