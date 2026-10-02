@@ -33,6 +33,7 @@ Each feature states:
 
 - [`transport/automatic-serial-discovery.md`](transport/automatic-serial-discovery.md)
 - [`transport/wireless-obstacle-state.md`](transport/wireless-obstacle-state.md)
+- [`transport/tx-manual-state-injection.md`](transport/tx-manual-state-injection.md)
 - [`transport/runtime-transceiver-modes.md`](transport/runtime-transceiver-modes.md)
 - [`transport/rx-reception-stubs.md`](transport/rx-reception-stubs.md)
 

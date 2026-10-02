@@ -30,6 +30,8 @@ This is the repository-wide maturity ledger. It answers two separate questions f
 | LE 1M runtime mode | Implemented | Dedicated coordinated switch test open | Implemented, not fully hardware-validated | firmware |
 | RX duplicate suppression | Implemented | **Two-board smoke PASS** | Validated for repeated OBS/CLR episode | two-board validation |
 | RX JSONL logger | Implemented | Dedicated hardware run open | Implemented, not hardware-validated | `firmware/tools/rx_logger.py` |
+| TX manual state injection | Implemented | Hardware-exercised as shared TX state input | **Stub/test input**; does not validate DSP producer | firmware + TX state validation |
+| RX reception stubs | Implemented | LED/mode board test PASS; serial/suppression checks still open | **Stub**; does not validate natural BLE reception | firmware + stub validation record |
 | Controlled Robot Ethernet/SSH reachability | Operational work documented | Not a production bridge | Supporting capability only | `robotics/`, decision log |
 | Persistent serial->SSH bridge | Not implemented | None | Design only | `robot-ros-0001` |
 | ROS safety arbitration | Not implemented | None | Design only | `robot-ros-0001` |

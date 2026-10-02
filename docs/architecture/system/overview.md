@@ -716,4 +716,4 @@ These are real engineering gaps, not documentation TODOs. The documentation shou
 - [`validation.md`](../../validation/system-validation.md) — evidence and validation gaps.
 - [`failure-modes-and-safety.md`](../safety/failure-modes.md) — cross-boundary failure behavior.
 - [`integration-plan.md`](integration-plan.md) — dependency-ordered remaining work.
-- [`../decision-logs/`](../../../decision-logs) — accepted and superseded design decisions.
+- [`../../decisions/`](../../decisions) — accepted and superseded design decisions.
