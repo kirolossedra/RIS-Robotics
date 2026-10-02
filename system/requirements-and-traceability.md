@@ -16,8 +16,8 @@ This document turns the system architecture into explicit, reviewable requiremen
 
 | Requirement | Current implementation | Verification / evidence | Status |
 |---|---|---|---|
-| The Husky acts only as the moving Dummy Robot in the conflicting corridor. | Experiment architecture and robot decision records | Husky acquisition/troubleshooting records | Accepted system role |
-| The Jackal is the Controlled Robot and remains normally teleoperated through its existing velocity-command path. | Robot architecture decision | Robot-side integrated validation not yet performed | Accepted; downstream integration pending |
+| The Dummy Robot acts only as the moving target in the conflicting corridor. | Experiment architecture and robot decision records | Dummy Robot acquisition/troubleshooting records | Accepted system role |
+| The Controlled Robot is the Controlled Robot and remains normally teleoperated through its existing velocity-command path. | Robot architecture decision | Robot-side integrated validation not yet performed | Accepted; downstream integration pending |
 | The sensing computer reduces Radar/RIS observations to a semantic person/robot/nothing decision before control transport. | DSP acquisition, classifier adapter, rolling vote | DSP software tests | Implemented; classifier semantics blocked by placeholder model |
 | A stable person or robot decision maps to obstacle; stable nothing maps to clear. | `dsp/integration/obstacle_state.py` | `dsp/tests/test_serial_integration.py` | Implemented + software-tested |
 | Unknown or invalid semantic input must not manufacture a clear state. | Obstacle-state adapter holds previous state and faults | Serial-integration tests | Implemented + software-tested |
@@ -26,9 +26,9 @@ This document turns the system architecture into explicit, reviewable requiremen
 | Both NRF boards use the same firmware image and select TX/RX role at runtime. | `firmware/transceiver/` | Correct-target hardware bring-up; two-board link used runtime roles | Implemented; dedicated role-switch exercise still open |
 | Default wireless transport is LE Coded S=8, with LE 1M available as a runtime mode. | Transceiver firmware | S=8 smoke test PASS; coordinated 1M switch test open | Partially hardware-validated |
 | Repeated wireless state advertisements must not become repeated host transitions. | RX deduplication | Two-board smoke test with repeated `OBS`/`CLR` | Implemented + validated |
-| The Jackal-side host transports received state to the onboard computer through a persistent SSH session. | No bridge code yet | None | Design only |
-| STOP precedence is enforced locally on the Jackal rather than by message arrival order. | No ROS arbiter yet | None | Design only |
-| STOP is enforced only when the corridor is unsafe and the Jackal is within the configured corner-distance threshold. | No distance gate yet | None | Design only; distance source and threshold TBD |
+| The Controlled Robot-side host transports received state to the onboard computer through a persistent SSH session. | No bridge code yet | None | Design only |
+| STOP precedence is enforced locally on the Controlled Robot rather than by message arrival order. | No ROS arbiter yet | None | Design only |
+| STOP is enforced only when the corridor is unsafe and the Controlled Robot is within the configured corner-distance threshold. | No distance gate yet | None | Design only; distance source and threshold TBD |
 
 ## Safety and failure requirements
 
@@ -54,4 +54,4 @@ When implementation changes, update this file together with [`implementation-sta
 
 ## Requirements without implementation
 
-The largest unimplemented requirements are all on the controlled-robot side: persistent serial-to-SSH forwarding, Jackal-local ROS command arbitration, distance acquisition/gating, stale-state handling, reconnect/resynchronization, and the full-chain acceptance test. These are not documentation gaps; they are real engineering gaps.
+The largest unimplemented requirements are all on the controlled-robot side: persistent serial-to-SSH forwarding, Controlled Robot-local ROS command arbitration, distance acquisition/gating, stale-state handling, reconnect/resynchronization, and the full-chain acceptance test. These are not documentation gaps; they are real engineering gaps.

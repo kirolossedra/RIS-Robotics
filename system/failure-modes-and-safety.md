@@ -15,7 +15,7 @@ This document names failure modes that cross subsystem boundaries. It does not c
 
 ## Safety boundary
 
-The software STOP is an experiment-level intervention. It does not replace the Jackal physical emergency stop, supervised laboratory operation, or ordinary procedures for keeping people clear of uncontrolled robot motion.
+The software STOP is an experiment-level intervention. It does not replace the Controlled Robot physical emergency stop, supervised laboratory operation, or ordinary procedures for keeping people clear of uncontrolled robot motion.
 
 ## Failure-mode ledger
 
@@ -49,8 +49,8 @@ These protections are useful but they do not solve downstream liveness. Once rob
 The repository does **not** yet define:
 
 - maximum acceptable age of obstacle state;
-- what the Jackal must do after BLE silence;
-- what the Jackal must do after SSH loss;
+- what the Controlled Robot must do after BLE silence;
+- what the Controlled Robot must do after SSH loss;
 - how a restarted bridge learns the authoritative current state;
 - what happens when distance is unavailable or stale;
 - whether STOP is latched through any failures and, if so, how it is released;
@@ -61,7 +61,7 @@ These must be implemented consciously. Choosing a behavior only because it is ea
 ## Rules for future implementation
 
 - **Never convert absence of evidence into `CLR`.**
-- Keep final motion precedence local to the Jackal.
+- Keep final motion precedence local to the Controlled Robot.
 - Make connectivity/liveness observable to the operator.
 - Define state age and reconnect semantics before relying on the bridge.
 - Separate transport retries from semantic state transitions.

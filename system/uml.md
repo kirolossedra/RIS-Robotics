@@ -18,7 +18,7 @@
 - [Future failure sequence — SSH loss](#future-failure-sequence--ssh-loss)
 - [Transceiver runtime state model](#transceiver-runtime-state-model)
 - [System semantic state model](#system-semantic-state-model)
-- [Target Jackal control activity model](#target-jackal-control-activity-model)
+- [Target Controlled Robot control activity model](#target-controlled-robot-control-activity-model)
 - [UML interpretation notes](#uml-interpretation-notes)
 
 ## Purpose
@@ -33,7 +33,7 @@ No single UML diagram can faithfully represent a distributed cyber-physical syst
 - state machines;
 - target control activity.
 
-Together they describe the entire system without pretending that design-only Jackal components are already implemented.
+Together they describe the entire system without pretending that design-only Controlled Robot components are already implemented.
 
 ## Notation and maturity
 
@@ -51,7 +51,7 @@ Where an exact repository class exists, the UML uses its real name. Conceptual f
 
 ```mermaid
 classDiagram
-    class HuskyDummyRobot {
+    class DummyRobot {
         +provideMovingTarget()
     }
     class RadarRISSystem {
@@ -78,12 +78,12 @@ classDiagram
         +deduplicateState()
         +emitTransition()
     }
-    class JackalSideBridge_DESIGN_ONLY {
+    class Controlled RobotSideBridge_DESIGN_ONLY {
         +consumeRXSerial()
         +maintainPersistentSSH()
         +resynchronizeState()
     }
-    class JackalROSArbiter_DESIGN_ONLY {
+    class Controlled RobotROSArbiter_DESIGN_ONLY {
         +acceptTeleopCommand()
         +acceptSafetyState()
         +applyStopPrecedence()
@@ -93,7 +93,7 @@ classDiagram
         +validity
         +age
     }
-    class JackalControlledRobot {
+    class ControlledRobot {
         +executeVelocityCommand()
         +physicalEmergencyStop()
     }
@@ -103,20 +103,20 @@ classDiagram
         +useEmergencyStop()
     }
 
-    HuskyDummyRobot --> RadarRISSystem : creates observed motion
+    DummyRobot --> RadarRISSystem : creates observed motion
     RadarRISSystem --> CentralLaptop : sensing data
     CentralLaptop --> TransceiverTX_IMPLEMENTED : OBS / CLR serial
     TransceiverTX_IMPLEMENTED --> BLETransport_IMPLEMENTED : advertise state
     BLETransport_IMPLEMENTED --> TransceiverRX_IMPLEMENTED : receive state
-    TransceiverRX_IMPLEMENTED --> JackalSideBridge_DESIGN_ONLY : OBS / CLR serial
-    JackalSideBridge_DESIGN_ONLY --> JackalROSArbiter_DESIGN_ONLY : SSH-delivered safety state
-    DistanceSource_TBD --> JackalROSArbiter_DESIGN_ONLY : gating context
-    HumanOperator --> JackalROSArbiter_DESIGN_ONLY : normal cmd_vel
-    JackalROSArbiter_DESIGN_ONLY --> JackalControlledRobot : final software command
-    HumanOperator --> JackalControlledRobot : physical safety supervision
+    TransceiverRX_IMPLEMENTED --> Controlled RobotSideBridge_DESIGN_ONLY : OBS / CLR serial
+    Controlled RobotSideBridge_DESIGN_ONLY --> Controlled RobotROSArbiter_DESIGN_ONLY : SSH-delivered safety state
+    DistanceSource_TBD --> Controlled RobotROSArbiter_DESIGN_ONLY : gating context
+    HumanOperator --> Controlled RobotROSArbiter_DESIGN_ONLY : normal cmd_vel
+    Controlled RobotROSArbiter_DESIGN_ONLY --> ControlledRobot : final software command
+    HumanOperator --> ControlledRobot : physical safety supervision
 ```
 
-This is a conceptual system UML view. `JackalSideBridge_DESIGN_ONLY`, `JackalROSArbiter_DESIGN_ONLY`, and `DistanceSource_TBD` are architecture elements rather than repository classes.
+This is a conceptual system UML view. `Controlled RobotSideBridge_DESIGN_ONLY`, `Controlled RobotROSArbiter_DESIGN_ONLY`, and `DistanceSource_TBD` are architecture elements rather than repository classes.
 
 ## Implemented software structure
 
@@ -201,9 +201,9 @@ classDiagram
 ```mermaid
 flowchart LR
     subgraph Scene[Physical experiment scene]
-        H[Husky Dummy Robot]
+        H[Dummy Robot]
         R[Radar / RIS hardware]
-        J[Jackal Controlled Robot]
+        J[Controlled Robot]
     end
 
     subgraph Central[Central sensing laptop]
@@ -224,12 +224,12 @@ flowchart LR
         FW2[Same Transceiver firmware<br/>RX runtime role]
     end
 
-    subgraph Host[Jackal-side host]
+    subgraph Host[Controlled Robot-side host]
         LOG[rx_logger.py]
         BR[Future serial-to-SSH bridge]
     end
 
-    subgraph Onboard[Jackal onboard computer]
+    subgraph Onboard[Controlled Robot onboard computer]
         ROS[Future ROS arbiter]
     end
 
@@ -257,9 +257,9 @@ sequenceDiagram
     participant Serial as SerialStateOutput
     participant TX as NRF TX
     participant RX as NRF RX
-    participant Bridge as Jackal bridge (future)
+    participant Bridge as Controlled Robot bridge (future)
     participant Arbiter as ROS arbiter (future)
-    participant Jackal as Jackal
+    participant Controlled Robot as Controlled Robot
 
     Scene->>Radar: Person or robot enters conflicting corridor
     Radar->>DSP: Radar frames
@@ -275,7 +275,7 @@ sequenceDiagram
     Note over Bridge,Arbiter: Design-only downstream path
     Bridge->>Arbiter: forward unsafe state over persistent SSH
     Arbiter->>Arbiter: combine unsafe + distance gate
-    Arbiter->>Jackal: force STOP when gate is active
+    Arbiter->>Controlled Robot: force STOP when gate is active
 ```
 
 The sequence is partially executable today. Steps through RX serial are implemented; steps after RX serial are target behavior.
@@ -450,7 +450,7 @@ stateDiagram-v2
 
 The semantic FSM is deliberately conservative: unknown/fault holds state. It does not interpret lack of a valid classification as evidence of clearance.
 
-## Target Jackal control activity model
+## Target Controlled Robot control activity model
 
 ### UML view 12 — future local decision activity
 

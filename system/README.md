@@ -2,7 +2,7 @@
 
 **Role:** canonical cross-subsystem documentation for RIS-Robotics.  
 **Audit basis:** implementation and validation evidence present on `main` on 2026-09-28, immediately before this documentation overhaul.  
-**Rule:** intended architecture is never presented as implemented behavior.
+**Rule:** intended architecture is never presented as implemented behavior. Robot architecture is expressed through `DUMMY_ROBOT` / `CONTROLLED_ROBOT`; product names are current hardware bindings, not architectural identities.
 
 ## Contents
 
@@ -10,6 +10,7 @@
 - [Status vocabulary](#status-vocabulary)
 - [Documentation map](#documentation-map)
 - [Source-of-truth hierarchy](#source-of-truth-hierarchy)
+- [Robot-role abstraction](#robot-role-abstraction)
 - [Current system boundary](#current-system-boundary)
 - [Known open system decisions](#known-open-system-decisions)
 - [Maintenance rules](#maintenance-rules)
@@ -60,9 +61,18 @@ When documents disagree, resolve the disagreement in this order:
 
 A decision record can be accepted while its implementation is still pending. A historical session can truthfully describe an earlier state without being current.
 
+## Robot-role abstraction
+
+The system-wide documents use two stable roles:
+
+- `DUMMY_ROBOT` — the **Dummy Robot**, which supplies the physical moving target/stimulus in the conflicting corridor.
+- `CONTROLLED_ROBOT` — the **Controlled Robot**, whose motion is subject to local STOP arbitration.
+
+The current product bindings are documented in [`architecture.md#robot-role-abstraction-and-current-hardware-bindings`](architecture.md#robot-role-abstraction-and-current-hardware-bindings). Changing a physical robot changes the binding decision, not the system architecture.
+
 ## Current system boundary
 
-The repository is complete and physically validated through the NRF BLE transport. The live DSP has a coded serial integration path, but experiment control is deliberately blocked by placeholder inference. The downstream Jackal bridge, ROS arbiter, and distance gate remain unimplemented.
+The repository is complete and physically validated through the NRF BLE transport. The live DSP has a coded serial integration path, but experiment control is deliberately blocked by placeholder inference. The downstream Controlled Robot bridge, ROS arbiter, and distance gate remain unimplemented.
 
 ```text
 validated hardware:
@@ -70,7 +80,7 @@ host UART -> NRF TX -> BLE S=8 -> NRF RX -> host UART
 
 target system:
 Radar/RIS -> DSP -> serial -> NRF TX -> BLE -> NRF RX -> serial
-          -> SSH/ROS bridge -> local distance-gated STOP -> Jackal
+          -> SSH/ROS bridge -> local distance-gated STOP -> Controlled Robot
 ```
 
 ## Known open system decisions
@@ -78,8 +88,8 @@ Radar/RIS -> DSP -> serial -> NRF TX -> BLE -> NRF RX -> serial
 - Trained detector artifact and final output-label mapping.
 - Distance-to-corner source/method.
 - `DISTANCE_THRESHOLD` value and calibration process.
-- Jackal-side bridge implementation details beyond the accepted persistent-SSH architecture.
-- Exact ROS arbitration mechanism/topic wiring on the Jackal.
+- Controlled Robot-side bridge implementation details beyond the accepted persistent-SSH architecture.
+- Exact ROS arbitration mechanism/topic wiring on the Controlled Robot.
 - Explicit communication-loss policy for BLE/serial/SSH and stale state.
 
 ## Maintenance rules

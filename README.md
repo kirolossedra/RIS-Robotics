@@ -1,12 +1,13 @@
 # RIS-Robotics
 
-Repository for the Radar/RIS-to-robot experiment that turns a sensed corridor condition into a compact control state and, ultimately, a locally enforced Jackal STOP.
+Repository for the Radar/RIS-to-robot experiment that turns a sensed corridor condition into a compact control state and, ultimately, a locally enforced Controlled Robot STOP.
 
-**System documentation status:** audited against the implementation on 2026-09-28. The repository is currently validated through the two-board NRF/BLE transport; the Jackal actuation path is not yet implemented end to end.
+**System documentation status:** audited against the implementation on 2026-09-28. The repository is currently validated through the two-board NRF/BLE transport; the Controlled Robot actuation path is not yet implemented end to end.
 
 ## Contents
 
 - [System at a glance](#system-at-a-glance)
+- [Robot-role abstraction and current bindings](#robot-role-abstraction-and-current-bindings)
 - [Current implementation status](#current-implementation-status)
 - [Documentation](#documentation)
 - [Repository areas](#repository-areas)
@@ -16,7 +17,7 @@ Repository for the Radar/RIS-to-robot experiment that turns a sensed corridor co
 ## System at a glance
 
 ```text
-Husky / Dummy Robot
+DUMMY_ROBOT / Dummy Robot
     -> Radar/RIS sensing
     -> central laptop DSP
        acquisition -> maps -> CNN-LSTM -> rolling vote
@@ -26,13 +27,13 @@ Husky / Dummy Robot
        Coded S=8 default; LE 1M switchable
     -> nRF52833 Transceiver (RX role)
     -> OBS/CLR serial
-    -> Jackal-side control bridge                  [PENDING]
+    -> Controlled Robot-side control bridge                  [PENDING]
     -> persistent SSH / robot-side ROS interface   [PENDING]
     -> distance-gated local STOP arbitration       [PENDING]
-    -> Jackal / Controlled Robot
+    -> CONTROLLED_ROBOT / Controlled Robot
 ```
 
-The two robots have separate roles: the **Husky is the Dummy Robot** in the conflicting/hidden corridor; the **Jackal is the Controlled Robot** in the controlled corridor.
+The two robots have separate roles: the **Dummy Robot is the Dummy Robot** in the conflicting/hidden corridor; the **Controlled Robot is the Controlled Robot** in the controlled corridor.
 
 ## Current implementation status
 
@@ -45,10 +46,10 @@ The two robots have separate roles: the **Husky is the Dummy Robot** in the conf
 | Shared NRF Transceiver firmware | Implemented as one nRF52833 image with runtime TX/RX roles | Correct-target boot validated on hardware |
 | NRF TX -> BLE -> NRF RX | Implemented | **Two-board smoke test PASS** on 2026-09-28 for `OBS`/`CLR`, duplicate suppression, S=8, and UART integration |
 | RX JSONL logger | Implemented | Standalone hardware run still open |
-| Jackal-side serial -> persistent SSH bridge | Design accepted | Not implemented in repository |
+| Controlled Robot-side serial -> persistent SSH bridge | Design accepted | Not implemented in repository |
 | ROS STOP arbitration | Design accepted | Not implemented in repository |
 | Distance-to-corner source + `DISTANCE_THRESHOLD` | Required by design | **TBD** |
-| Full sensing -> Jackal STOP chain | Target architecture | Not yet integrated or validated end to end |
+| Full sensing -> Controlled Robot STOP chain | Target architecture | Not yet integrated or validated end to end |
 
 ## Documentation
 
@@ -58,7 +59,7 @@ Key system records:
 
 - [`system/architecture.md`](system/architecture.md) — comprehensive whole-system and part-by-part architecture dossier.
 - [`system/uml.md`](system/uml.md) — structural, deployment, sequence, state, and activity UML views.
-- [`system/interfaces.md`](system/interfaces.md) — contracts between DSP, serial, BLE, RX, and the not-yet-implemented Jackal side.
+- [`system/interfaces.md`](system/interfaces.md) — contracts between DSP, serial, BLE, RX, and the not-yet-implemented Controlled Robot side.
 - [`system/runtime-and-state.md`](system/runtime-and-state.md) — state machines, latches, gating semantics, and runtime ownership.
 - [`system/requirements-and-traceability.md`](system/requirements-and-traceability.md) — system requirements tied to implementation and evidence.
 - [`system/configuration-and-operations.md`](system/configuration-and-operations.md) — supported configuration, runtime defaults, and pre-integration checks.
@@ -82,10 +83,10 @@ Key system records:
 - A missing, unknown, failed, or silent sensing result is **not** equivalent to corridor clear.
 - Placeholder inference must not drive experiment control; the code refuses serial output in placeholder mode unless a development-only override is explicitly used.
 - The NRF link carries compact `OBS`/`CLR` state, not raw radar data.
-- The Jackal-side STOP priority must be enforced locally by robot-side arbitration; message arrival order is not a safety policy.
+- The Controlled Robot-side STOP priority must be enforced locally by robot-side arbitration; message arrival order is not a safety policy.
 - Distance-to-corner is gating context, not a third motion authority.
 - The software STOP is an experiment mechanism and does not replace the physical emergency stop or supervised lab procedure.
 
 ## What remains
 
-The next system milestone is not more BLE work. It is to make the sensing output experiment-valid, validate the DSP-to-TX serial boundary on hardware, then implement and validate the Jackal-side bridge, local ROS arbitration, and distance gate before attempting the full end-to-end run.
+The next system milestone is not more BLE work. It is to make the sensing output experiment-valid, validate the DSP-to-TX serial boundary on hardware, then implement and validate the Controlled Robot-side bridge, local ROS arbitration, and distance gate before attempting the full end-to-end run.

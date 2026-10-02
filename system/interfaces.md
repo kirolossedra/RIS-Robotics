@@ -8,8 +8,8 @@
 - [DSP to NRF TX serial](#dsp-to-nrf-tx-serial)
 - [NRF TX to NRF RX BLE](#nrf-tx-to-nrf-rx-ble)
 - [NRF RX to host serial](#nrf-rx-to-host-serial)
-- [Host serial to Jackal bridge](#host-serial-to-jackal-bridge)
-- [Bridge to Jackal ROS](#bridge-to-jackal-ros)
+- [Host serial to Controlled Robot bridge](#host-serial-to-controlled-robot-bridge)
+- [Bridge to Controlled Robot ROS](#bridge-to-controlled-robot-ros)
 - [Distance-to-corner input](#distance-to-corner-input)
 - [Compatibility rules](#compatibility-rules)
 
@@ -25,7 +25,7 @@ This document defines data contracts at subsystem boundaries. It distinguishes i
 | Obstacle state -> NRF TX UART | Implemented + software-tested; live-DSP hardware validation pending |
 | NRF TX -> BLE -> NRF RX | Implemented + hardware smoke-tested |
 | NRF RX -> Python JSONL logger | Implemented; hardware logger run pending |
-| NRF RX -> Jackal-side bridge | Design only |
+| NRF RX -> Controlled Robot-side bridge | Design only |
 | Bridge -> ROS safety input | Design only |
 | Distance source -> ROS gate | TBD |
 
@@ -82,17 +82,17 @@ An initial `CLR` is silent. `CLR` is emitted only after RX has emitted an `OBS` 
 
 `firmware/tools/rx_logger.py` can timestamp accepted serial transitions in UTC JSON Lines. The logger implementation exists; a dedicated hardware JSONL validation run remains open.
 
-## Host serial to Jackal bridge
+## Host serial to Controlled Robot bridge
 
 **Status: design only. No bridge implementation exists in the repository.**
 
-The accepted architecture requires a Jackal-side process to consume the RX transition stream and maintain a persistent SSH connection to the Jackal onboard computer. Exact process API, reconnect behavior, state resynchronization, and stale-event policy are still implementation work.
+The accepted architecture requires a Controlled Robot-side process to consume the RX transition stream and maintain a persistent SSH connection to the Controlled Robot onboard computer. Exact process API, reconnect behavior, state resynchronization, and stale-event policy are still implementation work.
 
-## Bridge to Jackal ROS
+## Bridge to Controlled Robot ROS
 
 **Status: design only.**
 
-The bridge may trigger a ROS-side safety input over the already-open SSH session, but the final STOP precedence must be enforced locally on the Jackal. No repository code currently defines the ROS topic/action, launch configuration, mux/supervisor, or command-arbitration node.
+The bridge may trigger a ROS-side safety input over the already-open SSH session, but the final STOP precedence must be enforced locally on the Controlled Robot. No repository code currently defines the ROS topic/action, launch configuration, mux/supervisor, or command-arbitration node.
 
 ## Distance-to-corner input
 
@@ -105,4 +105,4 @@ No source, estimator, sensor, localization mechanism, update rate, units contrac
 - Do not change `OBS`/`CLR`, packet UUID, version, or state-byte meaning without a coordinated interface decision and updates on both firmware roles.
 - Do not infer `CLR` from transport silence.
 - Do not enable the DSP serial output for experiment use while placeholder inference is active.
-- Do not specify a ROS interface in system docs before the actual Jackal implementation selects it.
+- Do not specify a ROS interface in system docs before the actual Controlled Robot implementation selects it.

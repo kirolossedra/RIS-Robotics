@@ -9,11 +9,12 @@
 - [Purpose and audience](#purpose-and-audience)
 - [Status notation](#status-notation)
 - [Architecture principles](#architecture-principles)
+- [Robot-role abstraction and current hardware bindings](#robot-role-abstraction-and-current-hardware-bindings)
 - [System context](#system-context)
 - [Physical experiment architecture](#physical-experiment-architecture)
 - [Functional decomposition](#functional-decomposition)
 - [Part-by-part architecture](#part-by-part-architecture)
-  - [1. Husky and experiment scene](#1-husky-and-experiment-scene)
+  - [1. Dummy Robot and experiment scene](#1-dummy-robot-and-experiment-scene)
   - [2. Radar/RIS sensing boundary](#2-radarris-sensing-boundary)
   - [3. Central-laptop DSP pipeline](#3-central-laptop-dsp-pipeline)
   - [4. Semantic obstacle-state adapter](#4-semantic-obstacle-state-adapter)
@@ -22,10 +23,10 @@
   - [7. BLE state transport](#7-ble-state-transport)
   - [8. NRF Transceiver RX role](#8-nrf-transceiver-rx-role)
   - [9. RX host and logging](#9-rx-host-and-logging)
-  - [10. Jackal-side serial-to-SSH bridge](#10-jackal-side-serial-to-ssh-bridge)
-  - [11. Jackal-local ROS arbitration](#11-jackal-local-ros-arbitration)
+  - [10. Controlled Robot-side serial-to-SSH bridge](#10-controlled-robot-side-serial-to-ssh-bridge)
+  - [11. Controlled Robot-local ROS arbitration](#11-controlled-robot-local-ros-arbitration)
   - [12. Distance-to-corner gate](#12-distance-to-corner-gate)
-  - [13. Jackal and physical safety boundary](#13-jackal-and-physical-safety-boundary)
+  - [13. Controlled Robot and physical safety boundary](#13-controlled-robot-and-physical-safety-boundary)
 - [Cross-cutting architectural views](#cross-cutting-architectural-views)
   - [Data-flow view](#data-flow-view)
   - [Control-authority view](#control-authority-view)
@@ -69,11 +70,25 @@ An implemented box is not automatically a validated box, and an accepted design 
 The system is deliberately organized around a few strong boundaries:
 
 - **Semantic reduction before transport.** Radar/RIS data are reduced to semantic state before crossing the NRF link.
-- **Transport does not own policy.** Serial, BLE, and SSH move state; they do not decide whether Jackal motion is safe.
-- **Final motion authority stays robot-local.** The eventual STOP precedence belongs on the Jackal side rather than on the sensing laptop.
+- **Transport does not own policy.** Serial, BLE, and SSH move state; they do not decide whether Controlled Robot motion is safe.
+- **Final motion authority stays robot-local.** The eventual STOP precedence belongs on the Controlled Robot side rather than on the sensing laptop.
 - **Failure is not clear.** Missing or invalid information must not silently become `CLR`.
 - **Subsystems remain independently testable.** DSP, BLE transport, host bridge, and ROS arbitration can be validated in stages.
-- **Architecture follows the experiment, not platform ambition.** Husky and Jackal are used only for the roles needed by the research question; autonomous navigation is outside scope.
+- **Roles before platforms.** Architecture uses `DUMMY_ROBOT` and `CONTROLLED_ROBOT`; physical platforms are replaceable bindings of those roles.
+- **Architecture follows the experiment, not platform ambition.** The two robot roles exist only for the research functions needed by the experiment; autonomous navigation is outside scope.
+
+## Robot-role abstraction and current hardware bindings
+
+The architectural identities are roles, not robot products.
+
+| Architectural role | Canonical symbol | Responsibility | Current hardware binding |
+|---|---|---|---|
+| Dummy Robot | `DUMMY_ROBOT` | Provide the physical moving/stationary robot target in the conflicting corridor | Clearpath Husky A200 |
+| Controlled Robot | `CONTROLLED_ROBOT` | Remain under normal teleoperation while accepting the local higher-priority STOP policy | Clearpath Jackal |
+
+The mapping above is a **deployment/hardware binding**. Replacing either platform should normally require a binding decision and platform-specific validation, not a rewrite of sensing, transport, interface, or control architecture.
+
+Product names remain appropriate in hardware-specific troubleshooting, validation evidence, deployment instructions, and historical decision records.
 
 ## System context
 
@@ -82,16 +97,16 @@ The system is deliberately organized around a few strong boundaries:
 ```mermaid
 flowchart LR
     OP[Human operator]
-    H[Husky<br/>Dummy Robot]
+    H[DUMMY_ROBOT<br/>Dummy Robot]
     S[Radar/RIS sensing]
     DSP[Central laptop<br/>DSP + semantic state]
     TX[nRF52833<br/>TX role]
     BLE[BLE state transport]
     RX[nRF52833<br/>RX role]
-    BR[Jackal-side bridge<br/>DESIGN ONLY]
-    ROS[Jackal-local arbitration<br/>DESIGN ONLY]
+    BR[Controlled Robot-side bridge<br/>DESIGN ONLY]
+    ROS[Controlled Robot-local arbitration<br/>DESIGN ONLY]
     DIST[Distance-to-corner<br/>TBD]
-    J[Jackal<br/>Controlled Robot]
+    J[CONTROLLED_ROBOT<br/>Controlled Robot]
     ESTOP[Physical emergency stop]
 
     H -->|moving target| S
@@ -115,7 +130,7 @@ The implemented and validated chain currently ends at the RX serial boundary. Th
 ```mermaid
 flowchart TB
     subgraph CONFLICTING[Conflicting / hidden corridor]
-        H[Husky<br/>Dummy Robot]
+        H[DUMMY_ROBOT<br/>Dummy Robot]
         TARGET[Physical moving target]
         H --> TARGET
     end
@@ -127,7 +142,7 @@ flowchart TB
     end
 
     subgraph CONTROLLED[Controlled corridor]
-        J[Jackal<br/>Controlled Robot]
+        J[CONTROLLED_ROBOT<br/>Controlled Robot]
         JOY[Operator teleoperation]
         JOY --> J
     end
@@ -137,7 +152,7 @@ flowchart TB
     RADAR -. semantic safety information eventually influences .-> J
 ```
 
-The Husky is a target, not a controlled actor in the safety path. The Jackal is the controlled actor, but its safety intervention is not implemented yet. Keeping those roles separate prevents the robot-platform history from being mistaken for the active control architecture.
+The Dummy Robot is a target, not a controlled actor in the safety path. The Controlled Robot is the controlled actor, but its safety intervention is not implemented yet. Keeping those roles separate prevents the robot-platform history from being mistaken for the active control architecture.
 
 ## Functional decomposition
 
@@ -155,10 +170,10 @@ flowchart LR
     H[Latch + advertise over BLE]
     I[Filter + deduplicate BLE state]
     J[Emit RX serial transition]
-    K[Forward to Jackal onboard computer<br/>DESIGN ONLY]
+    K[Forward to Controlled Robot onboard computer<br/>DESIGN ONLY]
     L[Apply local STOP precedence<br/>DESIGN ONLY]
     M[Apply distance gate<br/>TBD]
-    N[Drive Jackal base]
+    N[Drive Controlled Robot base]
 
     A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> K --> L --> M --> N
 ```
@@ -167,20 +182,20 @@ The decomposition shows an important design property: sensing semantics, protoco
 
 ## Part-by-part architecture
 
-### 1. Husky and experiment scene
+### 1. Dummy Robot and experiment scene
 
-**Status:** physical experiment role established; not part of the Jackal command chain.
+**Status:** physical experiment role established; not part of the Controlled Robot command chain.
 
-The Husky provides the moving robot target in the conflicting corridor. Its role is intentionally simple: create repeatable physical motion for Radar/RIS observation. Husky autonomy, localization, and command integration do not contribute to the final STOP logic.
+The Dummy Robot provides the moving robot target in the conflicting corridor. Its role is intentionally simple: create repeatable physical motion for Radar/RIS observation. Dummy Robot autonomy, localization, and command integration do not contribute to the final STOP logic.
 
 ```mermaid
 flowchart LR
-    H[Husky] --> MOVE[Repeatable physical movement]
+    H[DUMMY_ROBOT<br/>Dummy Robot] --> MOVE[Repeatable physical movement]
     MOVE --> SCENE[Conflicting-corridor scene]
     SCENE --> SENSE[Radar/RIS observation]
 ```
 
-Architectural consequence: failures in Husky teleoperation affect stimulus generation, not Jackal command authority.
+Architectural consequence: failures in Dummy Robot teleoperation affect stimulus generation, not Controlled Robot command authority.
 
 ### 2. Radar/RIS sensing boundary
 
@@ -301,7 +316,7 @@ flowchart LR
     PARSE -. invalid line .-> LATCH
 ```
 
-TX does not classify targets and does not decide whether Jackal should move. It accepts protocol state, latches it, and advertises it.
+TX does not classify targets and does not decide whether Controlled Robot should move. It accepts protocol state, latches it, and advertises it.
 
 ### 7. BLE state transport
 
@@ -371,20 +386,20 @@ flowchart LR
     VALID -->|No| READ
 ```
 
-This logger is not the Jackal control bridge. Conflating the two would hide control requirements such as reconnect policy and state synchronization.
+This logger is not the Controlled Robot control bridge. Conflating the two would hide control requirements such as reconnect policy and state synchronization.
 
-### 10. Jackal-side serial-to-SSH bridge
+### 10. Controlled Robot-side serial-to-SSH bridge
 
 **Status:** `DESIGN ONLY`.
 
-The accepted architecture places a small bridge on the Jackal-side host:
+The accepted architecture places a small bridge on the Controlled Robot-side host:
 
 ```mermaid
 flowchart LR
     SERIAL[RX serial transitions]
     BRIDGE[Persistent bridge process<br/>NOT IMPLEMENTED]
     SSH[Persistent SSH session]
-    ROBOT[Jackal onboard computer]
+    ROBOT[Controlled Robot onboard computer]
 
     SERIAL --> BRIDGE --> SSH --> ROBOT
 ```
@@ -393,11 +408,11 @@ The bridge should transport state, expose connection health, and define reconnec
 
 No bridge implementation, SSH client, reconnect FSM, or stale-event policy currently exists in the repository.
 
-### 11. Jackal-local ROS arbitration
+### 11. Controlled Robot-local ROS arbitration
 
 **Status:** `DESIGN ONLY`.
 
-The final STOP rule must be enforced locally on the Jackal rather than relying on whichever ROS message arrives last.
+The final STOP rule must be enforced locally on the Controlled Robot rather than relying on whichever ROS message arrives last.
 
 ```mermaid
 flowchart LR
@@ -405,7 +420,7 @@ flowchart LR
     SAFE[Safety state]
     DIST[Distance gate]
     ARB[Local supervisor / mux / arbiter<br/>NOT IMPLEMENTED]
-    BASE[Jackal base controller]
+    BASE[Controlled Robot base controller]
 
     JOY --> ARB
     SAFE --> ARB
@@ -419,7 +434,7 @@ The exact ROS topic names, node implementation, launch configuration, and mux/su
 
 **Status:** `TBD`.
 
-The architecture requires distance context because an obstacle in the conflicting corridor should not automatically stop a Jackal that is still far from the corner.
+The architecture requires distance context because an obstacle in the conflicting corridor should not automatically stop a Controlled Robot that is still far from the corner.
 
 ```mermaid
 flowchart TD
@@ -442,9 +457,9 @@ flowchart TD
 
 The diagram expresses the intended inputs, not an implemented boolean circuit. The distance source, units, update rate, validity rules, stale-data handling, calibration method, and threshold remain unselected.
 
-### 13. Jackal and physical safety boundary
+### 13. Controlled Robot and physical safety boundary
 
-**Status:** Jackal is the selected controlled robot; software safety path not yet integrated.
+**Status:** Controlled Robot is the selected controlled robot; software safety path not yet integrated.
 
 Software STOP is one experiment control mechanism. The physical emergency stop and supervised laboratory procedure remain independent safety controls.
 
@@ -452,7 +467,7 @@ Software STOP is one experiment control mechanism. The physical emergency stop a
 flowchart LR
     SW[Software motion authority]
     HW[Physical emergency stop]
-    BASE[Jackal drive/base]
+    BASE[Controlled Robot drive/base]
     HUMAN[Human supervisor]
 
     SW --> BASE
@@ -497,8 +512,8 @@ flowchart TB
     TRANSPORT[Serial + BLE + SSH transport]
     STOP[Safety STOP authority<br/>future]
     JOY[Normal teleoperation authority]
-    ARB[Jackal-local arbiter<br/>future]
-    MOTION[Jackal motion]
+    ARB[Controlled Robot-local arbiter<br/>future]
+    MOTION[Controlled Robot motion]
     ESTOP[Physical emergency stop]
 
     SENSE --> TRANSPORT --> STOP --> ARB
@@ -507,7 +522,7 @@ flowchart TB
     ESTOP --> MOTION
 ```
 
-Only teleoperation currently participates in real Jackal motion. The STOP branch is target architecture. Transport is explicitly not a motion authority.
+Only teleoperation currently participates in real Controlled Robot motion. The STOP branch is target architecture. Transport is explicitly not a motion authority.
 
 ### Deployment view
 
@@ -534,12 +549,12 @@ flowchart LR
         RXFW[Same Transceiver firmware]
     end
 
-    subgraph HOST[Jackal-side host]
+    subgraph HOST[Controlled Robot-side host]
         LOG[rx_logger.py]
         BRIDGE[Future bridge]
     end
 
-    subgraph JACKAL[Jackal onboard computer]
+    subgraph JACKAL[Controlled Robot onboard computer]
         ROS[Future ROS arbiter]
     end
 
@@ -564,7 +579,7 @@ flowchart LR
     W[SerialStateOutput<br/>last transmitted]
     T[TX latch<br/>CLR / OBS]
     R[RX dedup epoch<br/>last accepted]
-    J[Future Jackal safety state]
+    J[Future Controlled Robot safety state]
 
     V --> O --> W --> T --> R --> J
 ```
@@ -582,7 +597,7 @@ flowchart TB
     BLEF[BLE silence / PHY mismatch]
     SSHF[Future SSH loss]
     DISTF[Future stale distance]
-    MOTION[Jackal motion policy]
+    MOTION[Controlled Robot motion policy]
 
     DSPF -->|must not synthesize CLR| SERF
     SERF -->|visible fault / no false success| BLEF
@@ -620,12 +635,12 @@ Current qualifications:
 
 ```text
 current implemented path
- -> Jackal-side serial consumer
+ -> Controlled Robot-side serial consumer
  -> persistent SSH session
- -> Jackal-local ROS safety input
+ -> Controlled Robot-local ROS safety input
  -> explicit STOP-vs-cmd_vel arbitration
  -> distance-to-corner gate
- -> Jackal base controller
+ -> Controlled Robot base controller
 ```
 
 None of the added target blocks above is currently implemented in repository code.
@@ -639,7 +654,7 @@ None of the added target blocks above is currently implemented in repository cod
 | Testability | Pure obstacle-state logic and firmware protocol helpers are separable from hardware | Strong subsystem-level tests | End-to-end test harness does not yet exist |
 | Observability | DSP faults print; LEDs expose role/PHY; logger can timestamp events | Good bring-up visibility | Future bridge/ROS connection health must become observable |
 | Safety semantics | Unknown is not clear; placeholder serial is guarded | Avoids several silent-failure classes | BLE/SSH/stale-distance policy remains unresolved |
-| Locality of authority | Final STOP decision is intended to remain Jackal-local | Network transport cannot silently become the arbiter | Not yet implemented |
+| Locality of authority | Final STOP decision is intended to remain Controlled Robot-local | Network transport cannot silently become the arbiter | Not yet implemented |
 | Replaceability | Serial/BLE boundary uses a compact semantic protocol | Transport or classifier can be changed behind interfaces | Interface versioning beyond protocol v1 is not yet designed |
 | Operational simplicity | Same firmware image for TX/RX; runtime buttons select role/PHY | Reduces firmware-image drift | Runtime role/PHY mismatch still needs clear pre-run checks |
 
@@ -671,8 +686,8 @@ These are real engineering gaps, not documentation TODOs. The documentation shou
 
 ### Explicitly out of scope
 
-- Jackal autonomous navigation, SLAM, mapping, or path planning;
-- sophisticated Husky autonomy;
+- Controlled Robot autonomous navigation, SLAM, mapping, or path planning;
+- sophisticated Dummy Robot autonomy;
 - raw Radar/RIS streaming over BLE;
 - using the NRF firmware as a robot safety arbiter;
 - treating SSH or ROS message arrival order as priority;

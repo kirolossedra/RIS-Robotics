@@ -8,7 +8,7 @@
 - [Semantic obstacle latch](#semantic-obstacle-latch)
 - [Transceiver TX state](#transceiver-tx-state)
 - [Transceiver RX state](#transceiver-rx-state)
-- [Target Jackal STOP gate](#target-jackal-stop-gate)
+- [Target Controlled Robot STOP gate](#target-controlled-robot-stop-gate)
 - [Reset and resynchronization boundaries](#reset-and-resynchronization-boundaries)
 - [Critical semantic rule](#critical-semantic-rule)
 
@@ -26,7 +26,7 @@ The system contains several independent pieces of state. This document prevents 
 | last successfully transmitted serial state | `SerialStateOutput` | one serial-writer lifetime |
 | TX `CLR`/`OBS` latch | NRF TX role | until opposite command, role reset, or reboot |
 | RX last accepted state / episode | NRF RX role | current RX observation epoch |
-| Jackal STOP state | future ROS-side arbiter | **not implemented** |
+| Controlled Robot STOP state | future ROS-side arbiter | **not implemented** |
 | distance-to-corner | future gating input | **TBD** |
 
 ## DSP temporal state
@@ -60,13 +60,13 @@ Switching RX -> TX reinitializes the TX latch to `CLR`. Role and PHY are indepen
 
 RX scans the selected PHY, validates the service-data contract, and emits only transitions. Initial `CLR` is intentionally silent. A PHY switch resets the RX deduplication epoch.
 
-## Target Jackal STOP gate
+## Target Controlled Robot STOP gate
 
 **Design only:**
 
 ```text
 unsafe = received obstacle state is OBS
-near_corner = jackal_distance_to_corner <= DISTANCE_THRESHOLD
+near_corner = controlled_robot_distance_to_corner <= DISTANCE_THRESHOLD
 
 if unsafe AND near_corner:
     STOP overrides normal cmd_vel
@@ -85,7 +85,7 @@ The intended motion authorities are only normal teleoperation / `cmd_vel` and hi
 - NRF boot: TX + Coded S=8 + `CLR`.
 - Role switch to TX: TX latch resets `CLR`.
 - PHY switch in RX: deduplication epoch resets.
-- No Jackal-side state-resynchronization contract exists yet because the bridge/arbiter is not implemented.
+- No Controlled Robot-side state-resynchronization contract exists yet because the bridge/arbiter is not implemented.
 
 ## Critical semantic rule
 
