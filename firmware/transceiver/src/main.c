@@ -10,6 +10,7 @@
  * Runtime mode (see protocol.h):
  * - Button 1 (board alias sw0) toggles the BLE PHY: LE Coded S=8 <-> LE 1M.
  * - Button 2 (board alias sw1) toggles the operating role: TX <-> RX.
+ * - Button 3 (board alias sw2) toggles the TX state: CLR <-> OBS in TX role.
  * - Role and PHY are independent: switching one preserves the other.
  * - Boot default is TX + Coded S=8. No role persistence (no NVS/settings).
  *
@@ -23,8 +24,8 @@
  * never show a normal TX/RX pattern unless that role's transport is running.
  *
  * LEDs (board aliases): led1 stays on for TX role, led0 stays on for RX role.
- * led0 pulses during TX advertising; led1 pulses on valid RX packets. led2
- * shows the PHY mode: on = Coded S=8, off = 1M.
+ * In TX, led0 stays off for CLR and pulses while advertising OBS. In RX,
+ * led1 pulses on valid packets. led2 shows PHY: on = Coded S=8, off = 1M.
  *
  * Pure protocol/mode logic lives in protocol.h so host-side tests reuse it.
  */
@@ -52,6 +53,7 @@
 #define LED2_NODE DT_ALIAS(led2)
 #define SW0_NODE  DT_ALIAS(sw0)
 #define SW1_NODE  DT_ALIAS(sw1)
+#define SW2_NODE  DT_ALIAS(sw2)
 
 #if !DT_NODE_HAS_STATUS(LED0_NODE, okay)
 #error "The selected board must provide the led0 devicetree alias"
@@ -71,6 +73,10 @@
 
 #if !DT_NODE_HAS_STATUS(SW1_NODE, okay)
 #error "The selected board must provide the sw1 devicetree alias for role switching"
+#endif
+
+#if !DT_NODE_HAS_STATUS(SW2_NODE, okay)
+#error "The selected board must provide the sw2 devicetree alias for TX state switching"
 #endif
 
 #define STATE_CLEAR    TRANSCEIVER_STATE_CLEAR
@@ -96,6 +102,7 @@ static const struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET(LED1_NODE, gpios);
 static const struct gpio_dt_spec phy_led = GPIO_DT_SPEC_GET(LED2_NODE, gpios);
 static const struct gpio_dt_spec phy_button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
 static const struct gpio_dt_spec role_button = GPIO_DT_SPEC_GET(SW1_NODE, gpios);
+static const struct gpio_dt_spec state_button = GPIO_DT_SPEC_GET(SW2_NODE, gpios);
 
 static const struct device *const console = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 
@@ -124,11 +131,14 @@ static struct bt_le_ext_adv *advertiser;
 
 static struct gpio_callback phy_button_cb;
 static struct gpio_callback role_button_cb;
+static struct gpio_callback state_button_cb;
 static atomic_t phy_switch_request = ATOMIC_INIT(0);
 static atomic_t role_switch_request = ATOMIC_INIT(0);
+static atomic_t state_switch_request = ATOMIC_INIT(0);
 static atomic_t rx_activity_request = ATOMIC_INIT(0);
 static int64_t last_phy_button_ms;
 static int64_t last_role_button_ms;
+static int64_t last_state_button_ms;
 
 static int leds_init(void)
 {
@@ -197,6 +207,23 @@ static void role_button_isr(const struct device *dev, struct gpio_callback *cb,
 	atomic_set(&role_switch_request, 1);
 }
 
+static void state_button_isr(const struct device *dev, struct gpio_callback *cb,
+			     uint32_t pins)
+{
+	int64_t now;
+
+	ARG_UNUSED(dev);
+	ARG_UNUSED(cb);
+	ARG_UNUSED(pins);
+
+	now = k_uptime_get();
+	if (now - last_state_button_ms < BUTTON_DEBOUNCE_MS) {
+		return;
+	}
+	last_state_button_ms = now;
+	atomic_set(&state_switch_request, 1);
+}
+
 static int button_init(const struct gpio_dt_spec *button,
 		       struct gpio_callback *cb,
 		       gpio_callback_handler_t handler)
@@ -231,7 +258,12 @@ static int buttons_init(void)
 		return err;
 	}
 
-	return button_init(&role_button, &role_button_cb, role_button_isr);
+	err = button_init(&role_button, &role_button_cb, role_button_isr);
+	if (err) {
+		return err;
+	}
+
+	return button_init(&state_button, &state_button_cb, state_button_isr);
 }
 
 /* Test-and-clear for the ISR-raised requests. */
@@ -243,6 +275,11 @@ static bool phy_switch_poll(void)
 static bool role_switch_poll(void)
 {
 	return atomic_cas(&role_switch_request, 1, 0);
+}
+
+static bool state_switch_poll(void)
+{
+	return atomic_cas(&state_switch_request, 1, 0);
 }
 
 /* Coded S=8 advertising: explicit S=8 coding requirement (established). */
@@ -269,6 +306,25 @@ static int advertise_state(uint8_t state)
 
 	service_data[17] = state;
 	return bt_le_ext_adv_set_data(advertiser, ad, ARRAY_SIZE(ad), NULL, 0);
+}
+
+/* Serial OBS/CLR and Button 3 both write the same TX state latch. */
+static void tx_state_write(uint8_t state)
+{
+	if (state == tx_state || (state != STATE_CLEAR && state != STATE_OBSTACLE)) {
+		return;
+	}
+
+	if (advertise_state(state) == 0) {
+		tx_state = state;
+	}
+}
+
+static void tx_state_toggle(void)
+{
+	uint8_t requested = (tx_state == STATE_CLEAR) ? STATE_OBSTACLE : STATE_CLEAR;
+
+	tx_state_write(requested);
 }
 
 static int tx_transport_start(uint8_t state)
@@ -520,9 +576,7 @@ static void tx_poll_uart(void)
 				break;
 			}
 
-			if (requested != tx_state && advertise_state(requested) == 0) {
-				tx_state = requested;
-			}
+			tx_state_write(requested);
 			uart_len = 0;
 		}
 	} else if (uart_len < sizeof(uart_line) - 1) {
@@ -557,11 +611,17 @@ static void transceiver_run(void)
 		if (mode.role == TR_ROLE_TX) {
 			tx_poll_uart();
 		}
+		if (state_switch_poll() && mode.role == TR_ROLE_TX && transport_active) {
+			tx_state_toggle();
+		}
 
 		now = k_uptime_get();
-		if (mode.role == TR_ROLE_TX && transport_active && now >= next_tx_pulse) {
+		if (mode.role == TR_ROLE_TX && transport_active &&
+		    tx_state == STATE_OBSTACLE && now >= next_tx_pulse) {
 			activity_until = now + ACTIVITY_PULSE_MS;
 			next_tx_pulse = now + CONFIG_TRANSCEIVER_BLINK_INTERVAL_MS;
+		} else if (mode.role == TR_ROLE_TX && tx_state == STATE_CLEAR) {
+			activity_until = 0;
 		}
 		if (atomic_cas(&rx_activity_request, 1, 0) &&
 		    mode.role == TR_ROLE_RX && transport_active) {
@@ -569,7 +629,8 @@ static void transceiver_run(void)
 		}
 		role_leds_update();
 		(void)gpio_pin_set_dt(mode.role == TR_ROLE_TX ? &led0 : &led1,
-				      transport_active && now < activity_until);
+				      transport_active && now < activity_until &&
+			      (mode.role == TR_ROLE_RX || tx_state == STATE_OBSTACLE));
 
 		k_sleep(K_MSEC(5));
 	}

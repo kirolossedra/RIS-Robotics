@@ -1,6 +1,6 @@
 # RIS Transceiver
 
-> **Hardware correction (2026-09-28):** the connected development board was previously documented as a Nordic nRF52840 DK, but FICR identification proves the physical MCU is an **nRF52833** (128 KB RAM / 512 KB flash). The canonical build target is therefore the Nordic nRF52833 DK. Images built for `nrf52840dk` overrun physical SRAM and BusFault before `main()`; see `ble-runtime-0004` and the session log. The nRF52833 DK provides the same `led0`/`led1`/`led2`/`sw0`/`sw1` aliases and console, so no firmware source change was required.
+> **Hardware correction (2026-09-28):** the connected development board was previously documented as a Nordic nRF52840 DK, but FICR identification proves the physical MCU is an **nRF52833** (128 KB RAM / 512 KB flash). The canonical build target is therefore the Nordic nRF52833 DK. Images built for `nrf52840dk` overrun physical SRAM and BusFault before `main()`; see `ble-runtime-0004` and the session log. The nRF52833 DK provides the required `led0`/`led1`/`led2` and `sw0`/`sw1`/`sw2` aliases and console.
 
 The **Transceiver** is one nRF Connect SDK/Zephyr application built as a **single firmware image**. The same binary performs either side of the `OBS`/`CLR` protocol: TX and RX are **runtime roles** selected on-device with a physical button (`ble-runtime-0004`). There are no separate TX/RX images and no build-time role selection.
 
@@ -14,9 +14,9 @@ The current, verified build target is the Nordic nRF52833 DK:
 - build/flash tool: `west`
 - console: the board's Zephyr console at 115200 baud, 8 data bits, no parity, 1 stop bit
 
-The firmware uses the selected board's devicetree LED and button aliases. No GPIO pin numbers are embedded in the application. Role and activity indication use `led0` and `led1`; PHY indication uses `led2`. Role/PHY switching needs `sw0` (Button 1, PHY switch) and `sw1` (Button 2, role switch).
+The firmware uses the selected board's devicetree LED and button aliases. No GPIO pin numbers are embedded in the application. On the nRF52833 DK, Zephyr aliases `led0`, `led1`, and `led2` map to physical LED1, LED2, and LED3; physical LED4 is unused. `sw0`, `sw1`, and `sw2` map to Buttons 1, 2, and 3; Button 4 is unused.
 
-If the physical boards are not nRF52833 DKs, select their actual Zephyr board target and first confirm that it supplies the required aliases (`led0`, `led1`, `led2`, `sw0`, `sw1`) and supports extended advertising, LE Coded PHY, and advertising coding selection. (A previous revision of this file named the nRF52840 DK here; that was the misidentified hardware, corrected 2026-09-28.)
+If the physical boards are not nRF52833 DKs, select their actual Zephyr board target and first confirm that it supplies the required aliases (`led0`, `led1`, `led2`, `sw0`, `sw1`, `sw2`) and supports extended advertising, LE Coded PHY, and advertising coding selection.
 
 ## Layout
 
@@ -37,7 +37,7 @@ firmware/
 
 ## Runtime roles
 
-A freshly booted board starts as **TX + LE Coded S=8**. Pressing Button 2 (`sw1` alias, 200 ms debounce) toggles the operating role at runtime: TX ↔ RX. Role and PHY are independent dimensions — switching role preserves the current PHY and switching PHY preserves the current role, so all four combinations (TX/RX × S=8/1M) are reachable. There is no role persistence: every boot starts as TX + Coded S=8. No reboot or reflash is needed to change role.
+A freshly booted board starts as **TX + LE Coded S=8 + CLR**. Pressing Button 2 (`sw1` alias, 200 ms debounce) toggles the operating role at runtime: TX ↔ RX. Button 3 (`sw2`, 200 ms debounce) toggles the shared TX state between `CLR` and `OBS` while TX is active. Button 1 switches the PHY. Role and PHY are independent dimensions — switching role preserves the current PHY and switching PHY preserves the current role, so all four combinations (TX/RX × S=8/1M) are reachable. There is no role persistence: every boot starts as TX + Coded S=8 + CLR. No reboot or reflash is needed to change role, PHY, or the TX state.
 
 ### Entering RX (TX → RX)
 
@@ -53,18 +53,18 @@ A freshly booted board starts as **TX + LE Coded S=8**. Pressing Button 2 (`sw1`
 2. RX transient state is cleared.
 3. The TX latch is deliberately re-initialized to `CLR` and the UART is flushed so stale bytes can never become a command.
 4. Advertising of `CLR` starts on the currently selected PHY.
-5. Only if advertising starts does TX become the active role: `led1` stays on for TX role indication; `led0` pulses periodically while advertising is active.
+5. Only if advertising starts does TX become the active role: physical LED2 (`led1` alias) stays on for TX role indication. Physical LED1 (`led0` alias) stays off for `CLR` and blinks while `OBS` is advertised.
 
 A button press only requests a role; the requested role becomes active solely on successful transport start. If the new side fails to start, the firmware emits a rare diagnostic line (`ERR scan-start <err>` / `ERR adv-start <err>`) and attempts to restore the previous side. If the restore succeeds, the previous role simply remains active with its normal role and activity indications. If both sides are down, the role and activity LEDs are forced off while the `led2` PHY indicator is unaffected; pressing Button 2 again retries.
 
 ### TX role
 
-TX holds `led1` on as the role indicator and pulses `led0` periodically while the advertiser is running. UART input is interpreted as host control commands only in TX mode. It reads newline-delimited commands from the serial console:
+TX holds physical LED2 (`led1` alias) on as the role indicator. Physical LED1 (`led0` alias) is off while the shared TX state is `CLR` and blinks while it is `OBS`. The blink lasts 80 ms at the configured interval (500 ms by default). UART input is interpreted as host control commands only in TX mode. It reads newline-delimited commands from the serial console:
 
 - `OBS` latches the state to obstacle;
 - `CLR` latches the state to clear.
 
-The current state is continuously present in non-connectable BLE extended advertisements. Repeating `OBS` or `CLR` does not change the state. Only the exact strings `OBS` and `CLR` act; anything else (wrong case, padding, overlong lines) is explicitly ignored and never coerced into a state. Pressing Button 1 switches the BLE PHY mode (see below); the latched `OBS`/`CLR` state is preserved across the switch and re-advertised on the new PHY.
+The current state is continuously present in non-connectable BLE extended advertisements. Exact serial lines `OBS` and `CLR` write the shared TX state; Button 3 toggles that same state for local testing. Whichever input writes last determines the state that TX advertises. Repeating the current state does not change it. Wrong case, padding, overlong lines, and other invalid input are ignored. Pressing Button 1 switches the BLE PHY mode (see below); the shared `OBS`/`CLR` state is preserved across the switch and re-advertised on the new PHY. Button 3 is ignored in RX mode.
 
 ### RX role
 
@@ -96,11 +96,11 @@ Pressing the board's Button 1 (`sw0` alias, 200 ms debounce) toggles the PHY mod
 
 ### Role switching with Button 2
 
-Pressing the board's Button 2 (`sw1` alias, 200 ms debounce) toggles the TX/RX role at runtime as described above. Do not confuse the two buttons: Button 1 changes PHY, Button 2 changes role, and neither channel interferes with the other.
+Pressing Button 2 (`sw1`, 200 ms debounce) toggles the TX/RX role. Button 3 (`sw2`, 200 ms debounce) toggles TX state while in TX role. Button 1 (`sw0`) changes PHY. These controls are independent.
 
 ### LED indication
 
-Role and radio activity are indicated separately: TX holds `led1` on and pulses `led0` while advertising; RX holds `led0` on and pulses `led1` on valid packet reception. PHY mode is shown separately on `led2`: on = LE Coded S=8, off = LE 1M. See [`ble-runtime-0005`](../decision-logs/ble-runtime-0005-transceiver-activity-indicators.md).
+On TX, physical LED2 (`led1` alias) indicates the role; physical LED1 (`led0` alias) is off for `CLR` and blinks for `OBS`. On RX, physical LED1 is the role indicator and physical LED2 pulses on each valid received packet, including duplicates. Physical LED3 (`led2` alias) shows the PHY: on = LE Coded S=8, off = LE 1M. See [`ble-runtime-0006`](../decision-logs/ble-runtime-0006-shared-tx-state-and-obstacle-indication.md).
 
 ## Build and flash
 
@@ -111,7 +111,7 @@ west build -p always -b nrf52833dk/nrf52833 firmware/transceiver -d build/transc
 west flash -d build/transceiver
 ```
 
-A freshly flashed board boots as TX (`led1` stays on and `led0` pulses, with `led2` on for Coded S=8). Press Button 2 to switch it to RX (`led0` stays on and `led1` pulses on packets); press Button 1 on either board to switch its PHY. In TX mode the serial port accepts `OBS` and `CLR`, each followed by Enter/newline.
+A freshly flashed board boots as TX + CLR (physical LED2 and LED3 on; LED1 off). Press Button 3 to toggle to OBS (LED1 blinks), or send `OBS` over TX serial for the same state. Button 2 switches it to RX; Button 1 switches PHY.
 
 If more than one debugger is connected, pass the probe identifier supported by the runner, for example `west flash -d build/transceiver --dev-id <serial-number>`.
 
@@ -178,15 +178,17 @@ After adding separate radio-activity LEDs, a pristine build passed for `nrf52833
 - Correct-target boot was observed without the earlier wrong-target pre-main heap BusFault.
 - The two-board default Coded S=8 path passed: repeated `OBS` produced one RX `OBS`, repeated `CLR` produced one RX `CLR`, and a later obstacle episode produced one new RX `OBS`.
 - UART host integration on both sides and RX duplicate suppression were exercised in that smoke test.
+- The shared TX state and LED1 behavior passed on the connected nRF52833 DK: reset booted to CLR with LED1 off; serial `OBS` and Button 3 both set OBS and blinked LED1; serial `CLR` cleared OBS (including after Button 3 set it), turning LED1 off.
 
 Evidence:
 
 - [`validation/2026-09-28-single-board-bringup.md`](validation/2026-09-28-single-board-bringup.md)
 - [`validation/2026-09-28-two-board-smoke-test.md`](validation/2026-09-28-two-board-smoke-test.md)
+- [`validation/2026-10-02-shared-tx-state-led-test.md`](validation/2026-10-02-shared-tx-state-led-test.md)
 
 ### Still open
 
-- human confirmation of the steady role indicators, TX advertising pulses, RX packet pulses, and PHY LED;
+- RX packet pulses, role indicators, and PHY LED still need human confirmation on the current firmware;
 - dedicated Button-2 runtime role-switch validation;
 - coordinated Button-1 S=8 <-> 1M over-air switching;
 - `rx_logger.py` JSONL run on the physical RX side;

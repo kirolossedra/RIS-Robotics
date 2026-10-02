@@ -43,17 +43,18 @@ A freshly booted Transceiver starts:
 Button behavior:
 
 - Button 1 / `sw0`: switch PHY between Coded S=8 and LE 1M;
-- Button 2 / `sw1`: switch runtime role TX <-> RX.
+- Button 2 / `sw1`: switch runtime role TX <-> RX;
+- Button 3 / `sw2`: toggle the shared TX state between `CLR` and `OBS` in TX role.
 
 LED intent:
 
-- TX: `led1` stays on to identify the role; `led0` pulses while advertising is active;
+- TX: physical LED2 (`led1` alias) stays on for role; physical LED1 (`led0` alias) stays off for `CLR` and blinks for `OBS`;
 - RX: `led0` stays on to identify the role; `led1` pulses whenever a valid Transceiver packet arrives, including duplicate state packets;
-- `led2` is the PHY indicator: on = Coded S=8, off = 1M.
+- physical LED3 (`led2` alias) is the PHY indicator: on = Coded S=8, off = 1M.
 
-See [`ble-runtime-0005`](../decision-logs/ble-runtime-0005-transceiver-activity-indicators.md) for the accepted role and activity LED decision.
+See [`ble-runtime-0006`](../decision-logs/ble-runtime-0006-shared-tx-state-and-obstacle-indication.md) for the accepted shared TX state and LED decision.
 
-The role/PHY logic is implemented; the complete human-observed LED and dedicated button-validation matrix remains open.
+The shared TX `CLR`/`OBS` state, serial input, Button 3 toggle, and TX LED1 indication were physically checked; see [`firmware/validation/2026-10-02-shared-tx-state-led-test.md`](../firmware/validation/2026-10-02-shared-tx-state-led-test.md). RX packet indication, role switching, and PHY switching still need board-level confirmation.
 
 ## DSP control enablement
 
