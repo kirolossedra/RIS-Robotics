@@ -62,30 +62,28 @@ Architecture, interfaces, requirements, and control semantics use the role names
 
 ## Documentation
 
-The system-level control center is [`system/README.md`](system/README.md). It separates **implemented**, **validated**, **blocked**, **design-only**, and **TBD** work instead of treating the intended end state as current behavior.
+The canonical documentation control center is [`docs/README.md`](docs/README.md). It separates architecture, features, decisions, validation, experiments, operations, and troubleshooting, while keeping raw implementation evidence with the subsystem that produced it.
 
-Key system records:
+Start with:
 
-- [`system/architecture.md`](system/architecture.md) — comprehensive whole-system and part-by-part architecture dossier.
-- [`system/uml.md`](system/uml.md) — structural, deployment, sequence, state, and activity UML views.
-- [`system/interfaces.md`](system/interfaces.md) — contracts between DSP, serial, BLE, RX, and the not-yet-implemented Controlled Robot side.
-- [`system/runtime-and-state.md`](system/runtime-and-state.md) — state machines, latches, gating semantics, and runtime ownership.
-- [`system/requirements-and-traceability.md`](system/requirements-and-traceability.md) — system requirements tied to implementation and evidence.
-- [`system/configuration-and-operations.md`](system/configuration-and-operations.md) — supported configuration, runtime defaults, and pre-integration checks.
-- [`system/implementation-status.md`](system/implementation-status.md) — implementation maturity ledger tied to repository evidence.
-- [`system/validation.md`](system/validation.md) — what has actually been proven and what has not.
-- [`system/failure-modes-and-safety.md`](system/failure-modes-and-safety.md) — failure semantics and unresolved safety-critical policies.
-- [`system/integration-plan.md`](system/integration-plan.md) — remaining work in dependency order.
-- [`decision-logs/`](decision-logs/) — why architecture choices were made; decision acceptance does not imply implementation completion.
+- [`docs/architecture/`](docs/architecture/) — what the system is and how its parts relate.
+- [`docs/features/`](docs/features/) — what capabilities the system provides, including stub/placeholder/design maturity.
+- [`docs/decisions/`](docs/decisions/) — why significant engineering choices were made.
+- [`docs/validation/`](docs/validation/) — what has actually been demonstrated, linked to raw evidence.
+- [`docs/experiments/`](docs/experiments/) — research campaigns and protocols.
+- [`docs/operations/`](docs/operations/) — how to configure and operate the system.
+- [`docs/troubleshooting/`](docs/troubleshooting/) — fault/recovery knowledge and hardware-specific investigation indexes.
+
+The legacy [`system/`](system/) and [`decision-logs/`](decision-logs/) paths are retained only as compatibility entry points during the migration.
 
 ## Repository areas
 
 - [`dsp/`](dsp/) — radar acquisition, feature construction, CNN-LSTM adapter, rolling vote, GUI, obstacle-state adapter, serial discovery/output, and tests.
 - [`firmware/`](firmware/) — shared Transceiver firmware, host RX logger, build/flash instructions, and dated validation evidence.
 - [`robotics/`](robotics/) — robot-side connectivity, access, controller, and troubleshooting records.
-- [`system/`](system/) — repository-wide system documentation and integration truth.
-- [`decision-logs/`](decision-logs/) — active and superseded architecture decisions.
-- [`sessions/`](sessions/) — dated engineering-session evidence; historical logs are not the current architecture authority.
+- [`docs/`](docs/) — canonical engineering knowledge: architecture, features, decisions, validation, experiments, operations, and troubleshooting.
+- [`sessions/`](sessions/) — dated engineering-session evidence and debug artifacts; historical logs are evidence, not current architecture authority.
+- [`system/`](system/) and [`decision-logs/`](decision-logs/) — compatibility paths retained while canonical documents live under `docs/`.
 
 ## System invariants
 
