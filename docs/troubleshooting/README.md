@@ -16,6 +16,7 @@ Robot-specific records currently include:
 
 - [Husky onboard-computer power / reversed polarity](../../robotics/husky/TS-001-onboard-computer-no-power-reversed-polarity.md)
 - [Husky PS4 controller Bluetooth pairing](../../robotics/husky/TS-002-ps4-controller-bluetooth-pairing.md)
+- [Husky troubleshooting images not rendering](../../robotics/husky/TS-003-husky-troubleshooting-images-not-rendering.md)
 
 Firmware/debug history is also preserved under [`../sessions/`](../sessions/).
 

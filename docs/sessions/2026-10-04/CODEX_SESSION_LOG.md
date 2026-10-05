@@ -93,3 +93,7 @@ The organization audit found that the repository already defines these ownership
 - Root `sessions/` is an intentional exception because dated engineering records include raw logs, debug evidence, and scripts as well as narrative. It is chronological evidence, not current authority.
 
 The rules distinguished authority correctly, but the layout remained confusing to navigate: the two compatibility folders looked active, while sessions was outside `docs/`. In the follow-up organization change, the compatibility pointer folders were removed after confirming that every pointer had a canonical target, and the complete session archive was moved to `docs/sessions/`. Active links and documentation indexes were updated; dated historical session entries were left intact.
+
+## Husky image rendering issue
+
+Added open troubleshooting record `robotics/husky/TS-003-husky-troubleshooting-images-not-rendering.md` for the report that images in the Husky documentation are not loading properly. The four image files referenced by TS-001 and their relative paths are present in the checkout; the viewer-specific failure has not been reproduced, so its cause remains unknown. Added the issue to the Husky and canonical troubleshooting indexes and created [GitHub issue #1](https://github.com/kirolossedra/RIS-Robotics/issues/1). No image assets were changed.
