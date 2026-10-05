@@ -18,5 +18,6 @@ a full investigation summary, and that date's debug evidence.
   [`README.md`](2026-09-28/README.md).
 
 Convention: `sessions/<YYYY-MM-DD>/` holds `README.md` (investigation
-summary), `MUSE_SESSION_LOG.md` (chronological record), and
-`debug-evidence/` (raw artifacts). Records are append-only history.
+summary), an agent-named `<AGENT>_SESSION_LOG.md` (chronological record), and
+`debug-evidence/` (raw artifacts). Existing MUSE-prefixed logs are historical;
+Codex sessions use `CODEX_SESSION_LOG.md`. Records are append-only history.

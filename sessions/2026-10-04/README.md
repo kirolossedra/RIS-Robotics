@@ -14,7 +14,7 @@
 
 This session updated the RIS-Robotics progress documentation after pulling the latest `origin/main`. The progress page was moved into the canonical system-architecture documentation, expanded into recursive diagrams for system parts, paired with a detailed written analysis, and given distinct visual styling for unimplemented blocks and untested paths.
 
-This record remains active for this chat: append future related work to [`MUSE_SESSION_LOG.md`](MUSE_SESSION_LOG.md) and update this summary when the progress-page or repository status changes materially.
+This record remains active for this chat: append future related work to [`CODEX_SESSION_LOG.md`](CODEX_SESSION_LOG.md) and update this summary when the progress-page or repository status changes materially.
 
 ## Work completed
 
@@ -52,7 +52,7 @@ The first system milestone remains installing and validating the trained detecto
 
 ## Chronological log
 
-See [`MUSE_SESSION_LOG.md`](MUSE_SESSION_LOG.md) for the detailed record.
+See [`CODEX_SESSION_LOG.md`](CODEX_SESSION_LOG.md) for the detailed record.
 
 ## Debug evidence
 

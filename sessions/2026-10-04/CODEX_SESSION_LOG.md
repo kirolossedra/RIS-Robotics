@@ -1,4 +1,4 @@
-# MUSE Session Log — 2026-10-04
+# Codex Session Log — 2026-10-04
 
 ## Contents
 
@@ -9,6 +9,7 @@
 - [Diagrams and written analysis](#diagrams-and-written-analysis)
 - [Visual status coding](#visual-status-coding)
 - [Checks and final repository state](#checks-and-final-repository-state)
+- [Log filename correction](#log-filename-correction)
 
 ## Repository update
 
@@ -77,3 +78,7 @@ The color legend is itself a Mermaid diagram. Path styling was applied to 21 dia
 - No runtime, unit, hardware, or end-to-end tests were run; this session changed documentation only.
 - No Mermaid renderer was run, so the diagrams have not been visually rendered and preview-verified.
 - The last progress-page commit in this session was `bc3d70a`, pushed to `origin/main`.
+
+## Log filename correction
+
+The session log initially used the repository's historical `MUSE_SESSION_LOG.md` filename. After clarifying that this chat is handled by Codex, the file was renamed to `CODEX_SESSION_LOG.md`; session indexes and the general naming convention were updated accordingly.
