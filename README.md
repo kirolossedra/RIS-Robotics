@@ -64,7 +64,7 @@ Architecture, interfaces, requirements, and control semantics use the role names
 
 The canonical documentation control center is [`docs/README.md`](docs/README.md). It separates architecture, features, decisions, validation, experiments, operations, and troubleshooting, while keeping raw implementation evidence with the subsystem that produced it.
 
-The concise boundary-by-boundary progress view is [`progress.md`](progress.md).
+The concise boundary-by-boundary progress view is [`docs/architecture/system/progress.md`](docs/architecture/system/progress.md).
 
 Start with:
 
