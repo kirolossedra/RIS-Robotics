@@ -13,6 +13,7 @@
 - [Discovered ROS control topology](#discovered-ros-control-topology)
 - [Safety-lock priority model](#safety-lock-priority-model)
 - [Observed STOP and release behavior](#observed-stop-and-release-behavior)
+- [Pre-smoke qualitative STOP-latency observation](#pre-smoke-qualitative-stop-latency-observation)
 - [Implication for RIS integration](#implication-for-ris-integration)
 - [Recorded exploration](#recorded-exploration)
   - [1. Start a recorded SSH session](#1-start-a-recorded-ssh-session)
@@ -68,6 +69,8 @@ The live experiment proved that publishing `std_msgs/msg/Bool` with `data: true`
 
 A second observation is equally important: a one-shot `false` publication did **not** restore motion, while a short repeated BEST_EFFORT publication of `false` did restore it. The safety-stop subscriber advertises BEST_EFFORT QoS, and the installed lock configuration uses `timeout: 0.0`; therefore a received lock state does not expire automatically. The eventual RIS bridge must not assume that a single release packet is guaranteed to be received.
 
+A further exploratory observation was made by asserting the same software stop **while the robot was already moving**. The operator perceived the stop response as somewhat slow. This was not timed, synchronized, or instrumented and therefore is **not validation evidence or a measured latency result**. It is a pre-smoke warning that trigger-to-zero-motion latency must be measured explicitly before the path is treated as suitable for the final experiment.
+
 ## What was proven
 
 | Question | Result | Meaning |
@@ -88,6 +91,7 @@ A second observation is equally important: a one-shot `false` publication did **
 | Mux output during lock | No changing output from joystick | The lock prevented the lower-priority velocity source from reaching the controller. |
 | One-shot `false` test | Motion remained blocked | A single release publication cannot be assumed reliable in this setup. |
 | Repeated BEST_EFFORT `false` | Motion restored | Once the release state was received by `twist_mux`, normal control resumed. |
+| Moving-stop response | Qualitatively felt somewhat slow | Not measured; smoke validation must instrument actual trigger-to-zero-motion latency. |
 
 ## Discovered ROS control topology
 
@@ -194,6 +198,37 @@ stateDiagram-v2
 
 The one-shot release experiment demonstrated that **application semantics and transport reliability must be treated separately**. Semantically, `false` releases the lock. Operationally, the bridge must ensure that the release state actually reaches the subscriber before assuming normal motion has resumed.
 
+## Pre-smoke qualitative STOP-latency observation
+
+A later exploratory repetition asserted `/husky1/platform/safety_stop = true` while the Controlled Robot was already moving under joystick control. The operator's immediate qualitative impression was that the robot took a noticeable amount of time to stop.
+
+This observation must be kept deliberately separate from validated performance:
+
+- no timestamps were captured at the safety-topic publication, mux output transition, controller response, or physical zero-motion point;
+- no repeated trials were run;
+- no starting speed or stopping distance was recorded;
+- the `ros2 topic pub --once` CLI itself performs publisher creation and discovery before publication, so perceived delay from command invocation cannot be assigned directly to `twist_mux`;
+- physical deceleration after velocity command suppression may contribute additional delay beyond ROS message propagation.
+
+Therefore the correct current statement is **"qualitatively noticeable stop delay observed during exploration"**, not a latency number and not a failed validation.
+
+Before formal smoke validation, the stop path should be decomposed into measurable boundaries:
+
+```mermaid
+flowchart LR
+    A["STOP test invocation"] --> B["Bool(true) published"]
+    B --> C["twist_mux accepts lock"]
+    C --> D["platform/cmd_vel suppressed"]
+    D --> E["controller / hardware response"]
+    E --> F["physical robot reaches zero motion"]
+
+    B -. "measure" .-> C
+    C -. "measure" .-> D
+    D -. "measure" .-> F
+```
+
+The smoke test should distinguish **software lock latency** from **physical stopping time**. The end-to-end quantity that ultimately matters for the RIS experiment is the time and distance from an accepted STOP trigger to physical zero motion at the tested approach speed.
+
 ## Implication for RIS integration
 
 The minimum ROS binding is now known:
@@ -219,6 +254,8 @@ The ROS side therefore does **not** require:
 The eventual bridge only needs a reliable way to drive the existing safety-lock interface. Whether the bridge invokes a ROS command through persistent SSH or later uses a small persistent publisher is an implementation decision still to be made.
 
 The live release behavior also suggests that the final design should not rely on isolated one-shot shell publications for safety-state synchronization. Reconnect, retry, heartbeat/liveness, and state-resynchronization policy remain design work.
+
+The qualitative moving-stop observation adds a separate requirement: the final design cannot be accepted based only on the fact that the lock eventually stops motion. Smoke validation must measure how quickly the lock is applied and how long/how far the physical robot continues moving after assertion.
 
 # Recorded exploration
 
@@ -1336,6 +1373,7 @@ This is not merely a shell-command detail. It is an integration requirement: the
 9. **The software lock does not expire when `timeout = 0.0`.** The installed code confirms this directly.
 10. **A one-shot release is not an acceptable final synchronization strategy.** The live experiment required repeated BEST_EFFORT `false` publication before motion resumed.
 11. **A custom ROS arbitration node is not required for the basic RIS stop path.** The remaining implementation problem is transport/state delivery into the existing lock interface.
+12. **Moving-stop latency is now a smoke-validation concern.** Exploratory use while already moving felt somewhat slow, but no latency or stopping-distance claim can be made until the path is instrumented and measured.
 
 ## Open questions before implementation
 
@@ -1347,5 +1385,7 @@ The ROS control topology itself is now understood well enough to proceed. The re
 - How does a restarted bridge learn and reassert the authoritative current RIS state?
 - How should SSH loss, RX-host death, BLE silence, and process restart map into the local software lock?
 - What explicit evidence should be required before an `OBS -> CLR` transition is considered successfully applied on the Controlled Robot?
+- During smoke validation, what are the measured delays from STOP publication to mux suppression, and from mux suppression to physical zero motion?
+- At the planned test speed, what stopping distance corresponds to that measured end-to-end response?
 
 Those questions should be decided before the one-shot shell test is promoted into the final runtime bridge.
