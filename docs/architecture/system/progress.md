@@ -2,6 +2,7 @@
 
 ## Contents
 
+- [Status colors](#status-colors)
 - [Whole system](#whole-system)
 - [1. Experiment roles](#1-experiment-roles)
 - [2. Radar/RIS sensing](#2-radarris-sensing)
@@ -29,6 +30,22 @@
   - [RX host and Controlled Robot](#rx-host-and-controlled-robot)
   - [Validation and next-item order](#validation-and-next-item-order)
 
+## Status colors
+
+Amber blocks are not implemented. Purple dashed paths have not been tested end to end. Blue blocks are implemented; solid blue paths have direct evidence for the represented behavior.
+
+```mermaid
+flowchart LR
+    A["Implemented block"] --> B["Tested path"]
+    C["Not implemented block"] -.-> D["Path not tested"]
+    classDef implemented fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
+    classDef notImplemented fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px;
+    class A,B implemented;
+    class C notImplemented;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 1 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
+```
+
 ## Whole system
 
 ```mermaid
@@ -49,11 +66,13 @@ flowchart LR
     classDef pass fill:#dbeafe,stroke:#1d4ed8,color:#172554,stroke-width:2px;
     classDef work fill:#eff6ff,stroke:#2563eb,color:#172554,stroke-width:2px;
     classDef blocked fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
-    classDef planned fill:#f8fbff,stroke:#60a5fa,color:#172554,stroke-width:2px,stroke-dasharray:4 4;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     class BLE,RX pass;
     class SCENE,SENSE,STATE,TX,HOST work;
     class DSP,SERIAL blocked;
     class BRIDGE,ROS,DIST,ROBOT planned;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 0,1,2,3,4,7,8,9,10,11 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 1. Experiment roles
@@ -68,6 +87,8 @@ flowchart LR
     classDef next fill:#eff6ff,stroke:#3b82f6,color:#172554,stroke-width:2px;
     class DUMMY,OPERATOR,ESTOP done;
     class STIMULUS,SCENE next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 0,1 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 2. Radar/RIS sensing
@@ -82,8 +103,12 @@ flowchart LR
 
     classDef done fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
     classDef next fill:#eff6ff,stroke:#3b82f6,color:#172554,stroke-width:2px;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     class RADAR,RIS,SDK,FRAME,SAVE done;
-    class ENV,DATA next;
+    class ENV next;
+    class DATA planned;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 5 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 3. DSP pipeline
@@ -104,25 +129,32 @@ flowchart LR
     class FRAME,MAP,WINDOW,VOTE,SAVE done;
     class MODEL,LABEL blocked;
     class STABLE next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 2,3,4,5 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 4. Semantic obstacle state
 
 ```mermaid
 flowchart LR
-    PERSON["Person label"] --> OBSTACLE["OBSTACLE state"]
-    ROBOT["Robot label"] --> OBSTACLE
-    NOTHING["Nothing label"] --> CLEAR["CLEAR state"]
+    MODEL["Trained detector + label map<br/>Not installed"] --> PERSON["Person label"]
+    MODEL --> ROBOT["Robot label"]
+    MODEL --> NOTHING["Nothing label"]
+    PERSON --> OBSTACLE["OBSTACLE state"]
+    ROBOT --> OBSTACLE
+    NOTHING --> CLEAR["CLEAR state"]
     UNKNOWN["Unknown / invalid / fault"] --> HOLD["Hold previous state + surface fault"]
     OBSTACLE --> OBS["OBS transition"]
     CLEAR --> CLR["CLR transition"]
     HOLD --> NO_FALSE_CLEAR["Never fabricate CLR"]
-    LABELS["Adapter code + hardware-free tests<br/>Implemented and tested"] -. "next: confirm authoritative label map" .-> MAP["Trained detector label contract<br/>Blocked on model artifact"]
 
     classDef done fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
     classDef blocked fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
-    class PERSON,ROBOT,NOTHING,OBSTACLE,CLEAR,UNKNOWN,HOLD,OBS,CLR,NO_FALSE_CLEAR,LABELS done;
-    class MAP blocked;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
+    class PERSON,ROBOT,NOTHING,OBSTACLE,CLEAR,UNKNOWN,HOLD,OBS,CLR,NO_FALSE_CLEAR done;
+    class MODEL planned;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 0,1,2 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 5. DSP-to-TX serial boundary
@@ -143,6 +175,8 @@ flowchart TD
     class ENUM,UNIQUE,DISABLE,OPEN,WRITER done;
     class STATE,TXUART blocked;
     class NEXT next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 5 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 6. Transceiver TX role
@@ -152,6 +186,7 @@ flowchart LR
     UART["UART line"] --> PARSER["Exact OBS / CLR parser<br/>Implemented"] --> LATCH["Shared TX state latch<br/>Hardware exercised"] --> DATA["Versioned BLE service data<br/>Implemented"] --> ADV["Extended advertiser<br/>Coded S=8 smoke-tested"]
     BUTTON["Button 3 manual state input<br/>TX integration stub; hardware exercised"] -. "bypasses DSP producer" .-> LATCH
     ROLE["Button 2 TX ↔ RX switch<br/>Implemented; dedicated hardware check open"] --> NEXT["Next: validate Button 2 role switching"]
+    BUTTON2["Button 2 role request"] --> RXROLE["RX scanner role<br/>Implemented; physical transition check open"]
     IMAGE["One shared firmware image<br/>nRF52833 target boot validated"] --> PARSER
 
     classDef done fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
@@ -159,7 +194,9 @@ flowchart LR
     classDef next fill:#eff6ff,stroke:#3b82f6,color:#172554,stroke-width:2px;
     class UART,PARSER,LATCH,DATA,ADV,IMAGE done;
     class BUTTON stub;
-    class ROLE,NEXT next;
+    class BUTTON2,ROLE,NEXT,RXROLE next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 6 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 7. BLE transport
@@ -179,6 +216,8 @@ flowchart LR
     class S8 done;
     class TX,PHY,RX done;
     class M1,NEXT next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 2,4 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 8. Transceiver RX role
@@ -200,6 +239,8 @@ flowchart LR
     class OTA,FILTER,DEDUP,DECIDE,SERIAL,QUIET,PHY done;
     class STUB stub;
     class STUBCHECK next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 2,6,7 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 9. RX host and logging
@@ -214,8 +255,12 @@ flowchart LR
 
     classDef done fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
     classDef next fill:#eff6ff,stroke:#3b82f6,color:#172554,stroke-width:2px;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     class UART,READ,VALID,TIME,JSONL,IGNORE done;
-    class HARDWARE,BRIDGE next;
+    class HARDWARE next;
+    class BRIDGE planned;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 5,6 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 10. Serial-to-SSH bridge
@@ -228,11 +273,14 @@ flowchart LR
     RECOVERY --> NEXT["Next: define contract, then implement bridge and recovery behavior"]
 
     classDef done fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
-    classDef planned fill:#f8fbff,stroke:#60a5fa,color:#172554,stroke-width:2px,stroke-dasharray:4 4;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     classDef next fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
     class RX done;
-    class CONSUMER,SSH,ROBOT_HOST,HEALTH,RECOVERY planned;
+    class CONSUMER,SSH,HEALTH,RECOVERY planned;
+    class ROBOT_HOST done;
     class NEXT next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 0,1,2,3,4 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 11. ROS arbitration
@@ -245,11 +293,14 @@ flowchart LR
     CMD --> TEST["Independent STOP assert / release test<br/>Next after selecting actual ROS command path"]
 
     classDef done fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
-    classDef planned fill:#f8fbff,stroke:#60a5fa,color:#172554,stroke-width:2px,stroke-dasharray:4 4;
+    classDef work fill:#eff6ff,stroke:#2563eb,color:#172554,stroke-width:2px;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     classDef next fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
     class JOY,BASE done;
     class TOPIC,SAFETY,ARB,CMD planned;
     class TEST next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 0,1,2,3,4 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 12. Distance gate
@@ -266,11 +317,13 @@ flowchart LR
     SENSOR --> NEXT["Next: choose source, specify contract, calibrate threshold"]
 
     classDef done fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
-    classDef planned fill:#f8fbff,stroke:#60a5fa,color:#172554,stroke-width:2px,stroke-dasharray:4 4;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     classDef next fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
     class OBS done;
     class SENSOR,VALID,NEAR,THRESHOLD,UNSAFE,GATE,STOP,NORMAL planned;
     class NEXT next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 0,1,2,3,4,5,6,7 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## 13. Controlled Robot and safety
@@ -284,11 +337,13 @@ flowchart LR
     ARBITER --> NEXT["Next: implement arbiter, then prove STOP assert/release locally"]
 
     classDef done fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
-    classDef planned fill:#f8fbff,stroke:#60a5fa,color:#172554,stroke-width:2px,stroke-dasharray:4 4;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     classDef next fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
     class TELEOP,ESTOP,SUPERVISOR done;
     class ARBITER,MOTION,SAFETY planned;
     class NEXT next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 0,1,2 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## System validation
@@ -305,10 +360,12 @@ flowchart LR
 
     classDef pass fill:#dbeafe,stroke:#1d4ed8,color:#172554,stroke-width:2px;
     classDef work fill:#eff6ff,stroke:#2563eb,color:#172554,stroke-width:2px;
-    classDef planned fill:#f8fbff,stroke:#60a5fa,color:#172554,stroke-width:2px,stroke-dasharray:4 4;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     class DSP,BOARD,LINK,STUB pass;
     class HOST,NEXT work;
     class E2E,ACCEPT planned;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 3,4,5 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## Data-flow view
@@ -327,11 +384,13 @@ flowchart LR
     classDef pass fill:#dbeafe,stroke:#1d4ed8,color:#172554,stroke-width:2px;
     classDef work fill:#eff6ff,stroke:#2563eb,color:#172554,stroke-width:2px;
     classDef blocked fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
-    classDef planned fill:#f8fbff,stroke:#60a5fa,color:#172554,stroke-width:2px,stroke-dasharray:4 4;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     class BLE,RX pass;
     class PHYS,FRAME,FEATURES,VOTE,SEMANTIC work;
     class INFER,SERIAL blocked;
     class FUTURE planned;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 2,3,4,5,6,8 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## Control-authority view
@@ -347,12 +406,14 @@ flowchart TB
 
     classDef done fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
     classDef blocked fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
-    classDef planned fill:#f8fbff,stroke:#60a5fa,color:#172554,stroke-width:2px,stroke-dasharray:4 4;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     classDef next fill:#eff6ff,stroke:#3b82f6,color:#172554,stroke-width:2px;
     class TELEOP,TRANSPORT,ESTOP done;
     class DETECTION blocked;
     class STOP,ARB,MOTION planned;
     class NEXT next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 0,1,2,3,4 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## Deployment view
@@ -383,12 +444,14 @@ flowchart LR
     classDef pass fill:#dbeafe,stroke:#1d4ed8,color:#172554,stroke-width:2px;
     classDef work fill:#eff6ff,stroke:#2563eb,color:#172554,stroke-width:2px;
     classDef blocked fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
-    classDef planned fill:#f8fbff,stroke:#60a5fa,color:#172554,stroke-width:2px,stroke-dasharray:4 4;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     class AIR,RXFW pass;
     class ACQ,ADAPTER,TXFW,LOGGER work;
     class DSP,SOUT blocked;
     class BRIDGE,ROS planned;
     class NEXT work;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 0,1,2,3,6,7,8 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## State-ownership view
@@ -406,11 +469,13 @@ flowchart LR
     classDef pass fill:#dbeafe,stroke:#1d4ed8,color:#172554,stroke-width:2px;
     classDef work fill:#eff6ff,stroke:#2563eb,color:#172554,stroke-width:2px;
     classDef blocked fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
-    classDef planned fill:#f8fbff,stroke:#60a5fa,color:#172554,stroke-width:2px,stroke-dasharray:4 4;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     class TX,RX pass;
     class VOTE,ADAPTER,WRITER,RESET work;
     class FUTURE,RESYNC planned;
     class NEXT blocked;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 1,2,4,5 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## Failure-containment view
@@ -427,10 +492,14 @@ flowchart LR
 
     classDef done fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
     classDef open fill:#eff6ff,stroke:#2563eb,color:#172554,stroke-width:2px,stroke-dasharray:4 4;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     classDef next fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
     class MODEL,SEMANTICS,PORT,SERIAL done;
-    class BLE,SSH,DIST,ROBOT open;
+    class BLE open;
+    class SSH,DIST,ROBOT planned;
     class NEXT next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 2,3,4,5 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
 
 ## Written progress detail
