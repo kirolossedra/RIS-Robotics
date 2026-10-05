@@ -6,7 +6,7 @@
 **Date:** 2026-09-17  
 **Scope:** How a STOP state received from the BLE receiver reaches and overrides normal motion control on the Controlled Robot
 
-**Current hardware binding:** `CONTROLLED_ROBOT` = Clearpath Jackal. This platform choice is a binding, not the architectural identity used by this control decision.
+**Current hardware binding:** `CONTROLLED_ROBOT` = Clearpath Husky A200, updated 2026-10-04. This platform choice is a binding, not the architectural identity used by this control decision. The earlier Jackal selection remains in the dated hardware-selection history.
 
 ## Contents
 
@@ -87,7 +87,7 @@ The Controlled Robot has only two logical motion-control authorities:
 
 Distance-to-corner is contextual state used to gate whether STOP is enforced. It is **not** a third control authority.
 
-The active rule is:
+The original 2026-09-17 target rule was:
 
 ```text
 if conflicting_corridor_unsafe
@@ -97,7 +97,7 @@ else:
     normal cmd_vel remains allowed
 ```
 
-`DISTANCE_THRESHOLD = TBD`, and the source/method for Controlled Robot distance-to-corner remains **TBD**.
+The Radar-side range calculation and proposed 2.0 m `TRIGGER` are now specified in the [Controlled Robot corner-proximity protocol](../../../robotics/protocol-design/controlled-robot-corner-trigger.md). That protocol makes the trigger decision at the Radar station without control-station state sharing; the Controlled Robot's local arbiter still enforces STOP precedence. The 2.0 m threshold remains design-only pending measured trigger latency and braking distance.
 
 The STOP requirement is a control-priority rule, not a ROS topic-priority feature.
 

@@ -26,9 +26,12 @@ BLOCKED / NOT YET INTEGRATED:
 placeholder model prevents experiment-valid DSP control
 
 DESIGN ONLY:
+Radar slant range + height -> corner-proximity protocol (d <= 2.0 m)
+                           -> trigger to CONTROLLED_ROBOT
 RX serial -> persistent SSH -> Controlled Robot ROS arbiter
-          -> distance-gated STOP -> Controlled Robot
+          -> trigger/OBS STOP precedence -> Controlled Robot
 
-TBD:
-distance-to-corner source and DISTANCE_THRESHOLD
+OPEN:
+Radar target reference/calibration, clear hysteresis, event transport,
+trigger-to-stop latency, and stopping-distance evidence
 ```

@@ -27,7 +27,8 @@ This document defines data contracts at subsystem boundaries. It distinguishes i
 | NRF RX -> Python JSONL logger | Implemented; hardware logger run pending |
 | NRF RX -> Controlled Robot-side bridge | Design only |
 | Bridge -> ROS safety input | Design only |
-| Distance source -> ROS gate | TBD |
+| Radar range -> corner-proximity event | Design only; 2.0 m proposed threshold |
+| Corner-proximity event -> Controlled Robot local arbiter | Design only |
 
 ## DSP classification to obstacle adapter
 
@@ -96,9 +97,9 @@ The bridge may trigger a ROS-side safety input over the already-open SSH session
 
 ## Distance-to-corner input
 
-**Status: TBD.**
+**Status: algorithm design only.** The [corner-proximity protocol](../../../robotics/protocol-design/controlled-robot-corner-trigger.md) defines the proposed Radar-side projection `d = sqrt(r² - (h-z)²)` and trigger at `d <= 2.0 m`, addressed to `CONTROLLED_ROBOT`. Its assumptions include a calibrated Radar/corner transform, a fresh track of the robot reference point, and `w = 1 m/s` for the current Husky A200 binding. The proposed threshold is not validated as sufficient to stop the robot.
 
-No source, estimator, sensor, localization mechanism, update rate, units contract, threshold calibration procedure, or stale-data policy has been selected. The only accepted semantic requirement is that distance is contextual gating state for STOP enforcement; it is not a third motion authority.
+The concrete Radar track/reference-point source, calibration and uncertainty, sample rate/staleness limits, release hysteresis, event transport/encoding, and measured trigger-to-stop distance remain open. This logical event does not select a ROS topic; STOP authority remains local to the Controlled Robot.
 
 ## Compatibility rules
 

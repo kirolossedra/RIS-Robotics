@@ -19,7 +19,7 @@ RX serial
  -> persistent SSH transport
  -> robot-local ROS safety input
  -> local command arbiter
- -> distance-gated STOP
+ -> Radar corner-proximity trigger / safety STOP
  -> base controller
 ```
 
@@ -29,4 +29,4 @@ The final motion authority is local to the Controlled Robot. Network arrival ord
 
 ## Maturity
 
-The bridge, ROS arbitration, and distance gate are currently **Design only**. The distance source and threshold remain **TBD**.
+The bridge, ROS arbitration, and Radar-side corner-proximity trigger are **Design only**. The protocol proposes a 2.0 m threshold at 1 m/s for Husky A200, but reference-point calibration, event delivery, release behavior, latency, and stopping-distance validation remain open.

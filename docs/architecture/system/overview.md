@@ -84,7 +84,7 @@ The architectural identities are roles, not robot products.
 | Architectural role | Canonical symbol | Responsibility | Current hardware binding |
 |---|---|---|---|
 | Dummy Robot | `DUMMY_ROBOT` | Provide the physical moving/stationary robot target in the conflicting corridor | Clearpath Husky A200 |
-| Controlled Robot | `CONTROLLED_ROBOT` | Remain under normal teleoperation while accepting the local higher-priority STOP policy | Clearpath Jackal |
+| Controlled Robot | `CONTROLLED_ROBOT` | Remain under normal teleoperation while accepting the local higher-priority STOP policy | Clearpath Husky A200 |
 
 The mapping above is a **deployment/hardware binding**. Replacing either platform should normally require a binding decision and platform-specific validation, not a rewrite of sensing, transport, interface, or control architecture.
 
@@ -105,7 +105,7 @@ flowchart LR
     RX[nRF52833<br/>RX role]
     BR[Controlled Robot-side bridge<br/>DESIGN ONLY]
     ROS[Controlled Robot-local arbitration<br/>DESIGN ONLY]
-    DIST[Distance-to-corner<br/>TBD]
+    DIST[Radar corner-proximity trigger<br/>2.0 m proposed; design only]
     J[CONTROLLED_ROBOT<br/>Controlled Robot]
     ESTOP[Physical emergency stop]
 
@@ -121,7 +121,7 @@ flowchart LR
     ESTOP -. independent physical authority .-> J
 ```
 
-The implemented and validated chain currently ends at the RX serial boundary. The bridge, ROS arbiter, and distance gate appear because they are part of the accepted target architecture, but they are not current implementation.
+The implemented and validated chain currently ends at the RX serial boundary. The bridge, ROS arbiter, and Radar-side corner trigger appear as design-only target behavior; none is implemented in the repository.
 
 ## Physical experiment architecture
 
@@ -172,7 +172,7 @@ flowchart LR
     J[Emit RX serial transition]
     K[Forward to Controlled Robot onboard computer<br/>DESIGN ONLY]
     L[Apply local STOP precedence<br/>DESIGN ONLY]
-    M[Apply distance gate<br/>TBD]
+    M[Apply Radar corner-proximity trigger<br/>2.0 m proposed; design only]
     N[Drive Controlled Robot base]
 
     A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> K --> L --> M --> N
@@ -432,30 +432,26 @@ The exact ROS topic names, node implementation, launch configuration, and mux/su
 
 ### 12. Distance-to-corner gate
 
-**Status:** `TBD`.
+**Status:** Radar-side range projection and the proposed `2.0 m` trigger are **Design only**; range association, calibration, release rule, and stopping-distance validation remain open.
 
-The architecture requires distance context because an obstacle in the conflicting corridor should not automatically stop a Controlled Robot that is still far from the corner.
+The Radar station can derive the tracked `CONTROLLED_ROBOT` ground-plane distance from slant range and height without requesting state from the joystick/control station. At `d <= 2.0 m`, the proposed protocol sends a trigger to `CONTROLLED_ROBOT`; the robot-local arbiter retains final STOP authority. The threshold is a design assumption, not yet proven by a stopping test.
 
 ```mermaid
 flowchart TD
-    OBS[Obstacle state]
-    DIST[Distance-to-corner]
-    THR[DISTANCE_THRESHOLD]
-    NEAR{distance <= threshold?}
-    UNSAFE{Obstacle?}
-    STOP[Assert STOP]
-    PASS[Normal cmd_vel remains eligible]
+    RANGE[Radar slant range r + height h]
+    PROJECT[Project to ground-plane distance d]
+    NEAR{d <= 2.0 m?}
+    EVENT[Send trigger to CONTROLLED_ROBOT]
+    ARB[Robot-local arbiter]
+    STOP[STOP overrides joystick]
+    CLEAR[Explicit clear condition - TBD]
 
-    DIST --> NEAR
-    THR --> NEAR
-    OBS --> UNSAFE
-    NEAR --> STOP
-    UNSAFE --> STOP
-    NEAR --> PASS
-    UNSAFE --> PASS
+    RANGE --> PROJECT --> NEAR
+    NEAR -->|Yes| EVENT --> ARB --> STOP
+    NEAR -->|No| CLEAR --> ARB
 ```
 
-The diagram expresses the intended inputs, not an implemented boolean circuit. The distance source, units, update rate, validity rules, stale-data handling, calibration method, and threshold remain unselected.
+The diagram is the intended protocol flow, not an implemented circuit. `d = sqrt(r^2 - (h-z)^2)` assumes valid calibrated range and a tracked target reference point. The 1 m/s worst-case assumption and Husky A200 footprint leave 1.505 m from the front edge at a 2.0 m center-reference trigger. The trigger threshold remains unvalidated until latency, braking, range uncertainty, and geometry are measured; the explicit release threshold/hysteresis also remains TBD.
 
 ### 13. Controlled Robot and physical safety boundary
 
@@ -639,7 +635,7 @@ current implemented path
  -> persistent SSH session
  -> Controlled Robot-local ROS safety input
  -> explicit STOP-vs-cmd_vel arbitration
- -> distance-to-corner gate
+ -> Radar corner-proximity trigger
  -> Controlled Robot base controller
 ```
 

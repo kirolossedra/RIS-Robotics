@@ -1,0 +1,49 @@
+asyncapi: 3.1.0
+info:
+  title: RIS Basic Safety Protocol
+  version: 1.0.0
+  description: >-
+    Transport-independent logical Radar safety-state event contract. When the
+    latest accepted state is OBS, the safety STOP overrides joystick commands.
+    An explicit CLR releases the override. This document does not select a ROS
+    topic, ROS version, or controller implementation.
+x-assumptions:
+  - Radar has already classified the scene and emits a valid logical OBS or CLR state.
+  - The event is consumed for CONTROLLED_ROBOT; DUMMY_ROBOT is not the command recipient.
+  - Silence, malformed input, missing data, and stale state are never interpreted as CLR.
+  - A Controlled Robot-local arbiter applies STOP precedence over joystick commands.
+defaultContentType: text/plain
+channels:
+  radarSafetyState:
+    address: radar-safety-state
+    description: >-
+      Logical Radar state channel. The address is a contract identifier, not a
+      deployed topic or transport destination.
+    messages:
+      radarSafetyState:
+        $ref: '#/components/messages/RadarSafetyState'
+operations:
+  receiveRadarSafetyState:
+    action: receive
+    channel:
+      $ref: '#/channels/radarSafetyState'
+    summary: Receive the current semantic state reported by the Radar station.
+components:
+  messages:
+    RadarSafetyState:
+      name: RadarSafetyState
+      title: Radar Safety State
+      summary: Explicit obstacle or clear state from the Radar station.
+      contentType: text/plain
+      payload:
+        type: string
+        enum:
+          - OBS
+          - CLR
+      examples:
+        - name: Obstacle
+          summary: Obstacle state asserted; override joystick with STOP.
+          payload: OBS
+        - name: Clear
+          summary: Explicit clear state; release override and pass joystick input.
+          payload: CLR

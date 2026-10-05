@@ -24,6 +24,9 @@ This record remains active for this chat: append future related work to [`CODEX_
 - Expanded progress coverage across the experiment roles, Radar/RIS sensing, DSP, semantic-state generation, DSP-to-TX serial, Transceiver TX, BLE, Transceiver RX, RX host/logger, SSH bridge, ROS arbitration, distance gate, Controlled Robot safety, and system validation.
 - Added individual recursive Mermaid diagrams, status/evidence/next-item prose, cross-cutting views, and mappings back to the system architecture figures and UML views.
 - Added a color legend: amber blocks are not implemented; purple dashed paths are not tested end to end; blue blocks/solid blue paths represent implemented work and directly evidenced behavior.
+- Added the Basic Safety Protocol documentation set: assumptions, prose, pseudocode, Mermaid arbitration/state diagrams, and its AsyncAPI event contract. Rendered and visually inspected a four-page PDF preview.
+- Added the Radar-side corner-proximity trigger protocol for the Husky A200 Controlled Robot, including range/height projection, a proposed 2.0 m threshold analysis, assumptions, pseudocode, Mermaid diagrams, and an AsyncAPI contract. Updated current hardware-binding, interface, architecture, integration, and recursive progress records; the threshold remains design-only pending a measured stop test.
+- Updated the current `CONTROLLED_ROBOT` binding from Jackal to Husky A200 while preserving the earlier Jackal selection rationale as historical evidence.
 - Pushed each progress-page revision to `origin/main`.
 - Consolidated the documentation layout: removed root compatibility folders after confirming their canonical targets, and moved the dated session archive to `docs/sessions/` with active indexes and references updated.
 

@@ -6,6 +6,8 @@
 **Date:** 2026-09-17  
 **Scope:** Current Dummy Robot hardware binding and robot-detectability configuration
 
+**Historical context:** This 2026-09-17 record's Controlled Robot reference reflects the binding at the time it was written. The current `CONTROLLED_ROBOT` binding is Clearpath Husky A200 per [`robot-runtime-0003`](robot-runtime-0003-robot-role-abstraction-and-hardware-binding.md); the prior Jackal reference below is retained as dated context.
+
 ## Contents
 
 - [Decision](#decision)

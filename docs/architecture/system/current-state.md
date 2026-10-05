@@ -35,8 +35,8 @@ This is the repository-wide maturity ledger. It answers two separate questions f
 | Controlled Robot Ethernet/SSH reachability | Operational work documented | Not a production bridge | Supporting capability only | `robotics/`, decision log |
 | Persistent serial->SSH bridge | Not implemented | None | Design only | `robot-ros-0001` |
 | ROS safety arbitration | Not implemented | None | Design only | `robot-ros-0001` |
-| Distance-to-corner source | Not selected | None | TBD | system/decision docs |
-| Distance threshold | Not selected | None | TBD | system/decision docs |
+| Radar range-to-corner trigger | Algorithm specified | None | Design only; target tracking/calibration/transport open | `robotics/protocol-design/controlled-robot-corner-trigger.md` |
+| Proposed trigger threshold | 2.0 m at assumed 1 m/s | None | Design only; requires latency/braking validation | corner-trigger protocol |
 | End-to-end sensing->STOP | Not implemented as one chain | None | Not system-ready | cross-system |
 
 ## Implemented but blocked
@@ -56,8 +56,9 @@ The accepted persistent-SSH bridge and local ROS arbitration are architecture de
 ## TBD items
 
 - trained detector artifact and authoritative label mapping;
-- distance-to-corner mechanism;
-- `DISTANCE_THRESHOLD`;
+- calibrated Radar target-reference tracking and range uncertainty;
+- explicit trigger release threshold/hysteresis;
+- measured trigger-to-zero-motion latency and braking distance at the configured speed;
 - robot-side ROS interface and arbiter implementation details;
 - reconnect/resynchronization policy across serial/SSH;
 - communication-loss and stale-distance policy;

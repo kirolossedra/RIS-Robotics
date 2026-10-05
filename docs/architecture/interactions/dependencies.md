@@ -23,7 +23,9 @@ flowchart LR
     RX --> HOST[RX host interface]
     HOST --> BRIDGE[Controlled Robot bridge - design only]
     BRIDGE --> ARB[Local arbiter - design only]
-    DIST[Distance source/threshold - TBD] --> ARB
+    RANGE[Radar slant range + height] --> GATE[Corner-proximity trigger - design only]
+    GATE --> EVENT[CONTROLLED_ROBOT trigger event - design only]
+    EVENT --> ARB[Local arbiter - design only]
 
     SERIAL --> STEST[Serial integration tests]
     PACKET --> BTEST[Two-board validation]
@@ -36,10 +38,11 @@ flowchart LR
 |---|---|
 | model output labels | DSP adapter, feature docs, trained-model validation |
 | `OBS`/`CLR` framing | DSP writer, TX parser, interface docs, serial tests |
+| basic safety precedence (`OBS` overrides joystick) | protocol contract, local arbiter, control authority, integration validation |
 | BLE UUID/version/state byte | TX/RX firmware, protocol tests, two-board validation |
 | role/PHY runtime semantics | firmware, operations, stub behavior, hardware validation |
 | Controlled Robot ROS interface | bridge, arbiter, control-flow docs, failure/liveness policy |
-| distance contract | runtime state, arbiter, safety policy, end-to-end validation |
+| Radar range-to-corner trigger | range/height calibration, target association, trigger event contract, bridge, local arbiter, latency/braking validation |
 
 ## Stub dependencies
 

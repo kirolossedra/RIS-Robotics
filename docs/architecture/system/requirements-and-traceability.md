@@ -28,7 +28,7 @@ This document turns the system architecture into explicit, reviewable requiremen
 | Repeated wireless state advertisements must not become repeated host transitions. | RX deduplication | Two-board smoke test with repeated `OBS`/`CLR` | Implemented + validated |
 | The Controlled Robot-side host transports received state to the onboard computer through a persistent SSH session. | No bridge code yet | None | Design only |
 | STOP precedence is enforced locally on the Controlled Robot rather than by message arrival order. | No ROS arbiter yet | None | Design only |
-| STOP is enforced only when the corridor is unsafe and the Controlled Robot is within the configured corner-distance threshold. | No distance gate yet | None | Design only; distance source and threshold TBD |
+| Radar range geometry asserts a proximity trigger for `CONTROLLED_ROBOT` at the proposed 2.0 m threshold, and the local arbiter gives that trigger STOP precedence. | Protocol design only; no Radar trigger or arbiter implementation | None | Design only; calibration, release behavior, latency, and stopping-distance evidence open |
 
 ## Safety and failure requirements
 

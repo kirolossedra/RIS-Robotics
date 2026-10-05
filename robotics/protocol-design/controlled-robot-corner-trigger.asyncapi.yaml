@@ -1,0 +1,130 @@
+asyncapi: 3.1.0
+info:
+  title: Controlled Robot Corner-Proximity Trigger
+  version: 1.0.0
+  description: >-
+    Transport-independent Radar-station event contract. Under the documented
+    assumptions, the Radar station estimates the CONTROLLED_ROBOT's ground-plane
+    distance to the corner from slant range and height, then emits TRIGGER at or
+    below 2.0 m. The event is addressed to CONTROLLED_ROBOT, never DUMMY_ROBOT.
+    The current hardware-binding assumption is Clearpath Husky A200 with
+    maximum operating speed w = 1 m/s. Two meters is design-only pending a
+    measured latency and stopping-distance test. No control-station data is
+    required by the Radar decision; the outbound trigger transport is separate.
+x-assumptions:
+  radar_mount:
+    - Radar phase center is above the corner or its horizontal offset is calibrated out.
+    - Slant range r targets a fresh CONTROLLED_ROBOT reference-point track.
+    - Target reference height z is known; z = 0 is the simplified ground-level case.
+  control:
+    - Worst-case operating speed is assumed to be w = 1 m/s for Husky A200.
+    - TRIGGER asserts at d <= 2.0 m; the threshold is proposed, not validated.
+    - No control-station speed or pose data is shared with the Radar station.
+    - Missing or stale range cannot emit CLEAR; explicit clear hysteresis remains TBD.
+defaultContentType: application/json
+channels:
+  controlledRobotCornerProximity:
+    address: controlled-robot/corner-proximity
+    description: >-
+      Logical outbound Radar event for the CONTROLLED_ROBOT. This is a contract
+      address, not a deployed ROS topic or selected transport destination.
+    messages:
+      cornerProximityEvent:
+        $ref: '#/components/messages/CornerProximityEvent'
+operations:
+  sendCornerProximityEvent:
+    action: send
+    channel:
+      $ref: '#/channels/controlledRobotCornerProximity'
+    summary: Send a Radar-computed trigger or explicit clear event to CONTROLLED_ROBOT.
+components:
+  messages:
+    CornerProximityEvent:
+      name: CornerProximityEvent
+      title: Corner-Proximity Safety Event
+      summary: Radar-station event derived from range to the CONTROLLED_ROBOT.
+      contentType: application/json
+      payload:
+        type: object
+        additionalProperties: false
+        required:
+          - event
+          - target
+          - distance_to_corner_m
+          - trigger_threshold_m
+          - slant_range_m
+          - radar_height_m
+          - sample_time
+        properties:
+          event:
+            type: string
+            enum:
+              - TRIGGER
+              - CLEAR
+            description: >-
+              TRIGGER maps to the existing logical OBS/STOP behavior. CLEAR is
+              explicit and may be sent only after the configured valid-data
+              release condition; silence never clears a trigger.
+          target:
+            type: string
+            const: CONTROLLED_ROBOT
+            description: The safety event recipient and tracked robot role.
+          distance_to_corner_m:
+            type: number
+            minimum: 0
+            description: Ground-plane distance to the calibrated robot reference point.
+          trigger_threshold_m:
+            type: number
+            const: 2.0
+            description: Proposed trigger threshold; not yet validated for stopping.
+          slant_range_m:
+            type: number
+            minimum: 0
+            description: Instantaneous Radar slant range to the tracked reference point.
+          radar_height_m:
+            type: number
+            minimum: 0
+            description: Radar phase-center height above the ground reference plane.
+          target_reference_height_m:
+            type: number
+            minimum: 0
+            description: Height of the tracked target reference point; assumed zero if omitted.
+          assumed_speed_mps:
+            type: number
+            const: 1.0
+            description: Design assumption used for threshold analysis, not live speed telemetry.
+          sample_time:
+            type: string
+            format: date-time
+            description: Time at which the Radar range sample was acquired.
+          sequence:
+            type: integer
+            minimum: 0
+            description: Optional monotonically increasing sender sequence number.
+      examples:
+        - name: TriggerNearCorner
+          summary: Radar estimate reaches the 2.0 m threshold; route event to CONTROLLED_ROBOT.
+          payload:
+            event: TRIGGER
+            target: CONTROLLED_ROBOT
+            distance_to_corner_m: 1.95
+            trigger_threshold_m: 2.0
+            slant_range_m: 2.29
+            radar_height_m: 1.2
+            target_reference_height_m: 0.0
+            assumed_speed_mps: 1.0
+            sample_time: '2026-10-04T12:00:00Z'
+            sequence: 42
+        - name: ExplicitClear
+          summary: Radar satisfies the separately configured, valid-data release condition.
+          payload:
+            event: CLEAR
+            target: CONTROLLED_ROBOT
+            distance_to_corner_m: 2.4
+            trigger_threshold_m: 2.0
+            slant_range_m: 2.68
+            radar_height_m: 1.2
+            target_reference_height_m: 0.0
+            assumed_speed_mps: 1.0
+            sample_time: '2026-10-04T12:00:01Z'
+            sequence: 43

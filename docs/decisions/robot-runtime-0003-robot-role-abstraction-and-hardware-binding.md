@@ -5,6 +5,8 @@
 **Date:** 2026-10-02  
 **Scope:** Separation of stable robot roles from replaceable physical-platform bindings
 
+**Binding update:** On 2026-10-04, the user corrected the `CONTROLLED_ROBOT` platform binding from Clearpath Jackal to Clearpath Husky A200. The role abstraction remains unchanged; see the current table below. This updates the platform assignment without rewriting the earlier selection rationale.
+
 ## Contents
 
 - [Context](#context)
@@ -50,7 +52,7 @@ These are documentation/system-model symbols, not C preprocessor macros and not 
 | Architectural role | Canonical symbol | Current hardware binding |
 |---|---|---|
 | Dummy Robot | `DUMMY_ROBOT` | Clearpath Husky A200 |
-| Controlled Robot | `CONTROLLED_ROBOT` | Clearpath Jackal |
+| Controlled Robot | `CONTROLLED_ROBOT` | Clearpath Husky A200 |
 
 These bindings are current experiment choices, not permanent architectural identities.
 
@@ -85,8 +87,8 @@ When a physical detail matters in one of those system documents, the role is nam
 
 ## Relationship to earlier decisions
 
-- `robot-runtime-0001` remains the record of how the currently available Clearpath platforms were assigned to the two roles. Its product assignment is retained as the current hardware binding, while its hard-coded architectural naming is superseded by this decision.
+- `robot-runtime-0001` preserves the historical role/platform-selection reasoning. Its Jackal assignment for the Controlled Robot is superseded by the 2026-10-04 binding correction above; its hard-coded architectural naming is also superseded by this decision.
 - `robot-runtime-0002` remains valid as the hardware-specific Dummy Robot / Radar acquisition configuration for the current Husky A200 binding.
-- `robot-ros-0001` remains valid in substance, but its control path is now expressed as a **Controlled Robot** bridge/arbitration architecture; Clearpath Jackal is the current binding.
+- `robot-ros-0001` remains valid in substance, but its control path is now expressed as a **Controlled Robot** bridge/arbitration architecture; Clearpath Husky A200 is the current binding.
 
 No historical troubleshooting, validation, or session evidence is rewritten by this decision.

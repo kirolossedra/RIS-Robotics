@@ -97,3 +97,19 @@ The rules distinguished authority correctly, but the layout remained confusing t
 ## Husky image rendering issue
 
 Added open troubleshooting record `robotics/husky/TS-003-husky-troubleshooting-images-not-rendering.md` for the report that images in the Husky documentation are not loading properly. The four image files referenced by TS-001 and their relative paths are present in the checkout; the viewer-specific failure has not been reproduced, so its cause remains unknown. Added the issue to the Husky and canonical troubleshooting indexes and created [GitHub issue #1](https://github.com/kirolossedra/RIS-Robotics/issues/1). No image assets were changed.
+
+## Robotics directory organization
+
+Added `robotics/protocol-design/README.md` for robot-side interface/protocol specifications and `robotics/controller/README.md` for controller setup and operation. Linked both from the robotics overview, while keeping system-wide architecture and accepted design rationale in their existing canonical locations.
+
+## Basic safety protocol
+
+Added the transport-independent basic safety algorithm under `robotics/protocol-design/`: explicit Radar `OBS` overrides joystick input with `STOP`; explicit `CLR` releases the override and permits joystick input. Added assumptions, pseudocode, arbitration and state Mermaid flowcharts, and an AsyncAPI 3.1.0 YAML contract for the logical Radar state event. Unknown, missing, or stale state is not treated as `CLR`; its fail-safe motion policy remains unresolved. The precedence rule remains separate from the Radar-side corner-proximity trigger. ROS topic/controller binding remains in `robotics/controller/` or implementation code.
+
+## Husky corner-proximity trigger protocol
+
+After correcting the Controlled Robot hardware binding to Clearpath Husky A200, added `robotics/protocol-design/controlled-robot-corner-trigger.md` and its AsyncAPI 3.1.0 event contract. The Radar station projects instantaneous slant range using `d = sqrt(r^2 - (h-z)^2)`, assumes a worst-case operating speed of 1 m/s, and proposes a trigger at 2.0 m for `CONTROLLED_ROBOT`. The decision does not require speed/pose sharing with the control station; the one-way event destination is `CONTROLLED_ROBOT`, never `DUMMY_ROBOT`.
+
+Clearpath's Husky A200 specifications give 990 mm length, 670 mm width, and a 1 m/s maximum. At a 2.0 m center-reference trigger, the straight-ahead front edge is 1.505 m from the corner. This supports a plausible initial design point but does not prove stopping performance. Radar target/reference calibration, uncertainty, release hysteresis, trigger latency, minimum braking deceleration, and supervised stop-distance evidence remain open. Updated the hardware-binding decision and current architecture/progress/interface records; superseded Jackal selection rationale remains as dated history.
+
+The protocol documents include written assumptions, pseudocode, Mermaid flowcharts, and AsyncAPI event contracts. No runtime or hardware behavior changed. The previously requested four-page Basic Safety Protocol PDF was rendered and visually inspected under `output/pdf/`; it is a generated workspace artifact rather than protocol source.

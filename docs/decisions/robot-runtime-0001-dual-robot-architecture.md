@@ -2,7 +2,7 @@
 
 **ID:** `robot-runtime-0001`
 **Previous ID:** `DL-002`
-**Status:** Accepted — current hardware binding; architectural hard-coding superseded by `robot-runtime-0003`  
+**Status:** Historical platform-selection record; current binding updated by `robot-runtime-0003`
 **Date:** 2026-09-17  
 **Scope:** Robot roles in the RIS Robotics experiment
 
@@ -24,21 +24,21 @@
 
 ## Current interpretation
 
-This record preserves the decision that the available Clearpath platforms occupy the two experiment roles. As of `robot-runtime-0003`, those platforms are **bindings**:
+This record preserves the decision that the available Clearpath platforms occupy the two experiment roles. As of the 2026-10-04 binding correction recorded in `robot-runtime-0003`, those platforms are **bindings**:
 
 - `DUMMY_ROBOT` / Dummy Robot → Clearpath Husky A200
-- `CONTROLLED_ROBOT` / Controlled Robot → Clearpath Jackal
+- `CONTROLLED_ROBOT` / Controlled Robot → Clearpath Husky A200
 
 The role names are now the architecture. The product names below remain intentionally preserved because this record documents the hardware-selection history.
 
 ## Current decision
 
-The experiment retains **both** Clearpath robots with distinct roles.
+The experiment retains two robot roles. The prior Jackal selection below is preserved as superseded hardware-selection history; the current binding assigns a Husky A200 to each role, using separate physical instances when both are present.
 
-- **Husky = Dummy Robot.** The Husky operates in the conflicting / hidden corridor as the moving physical obstacle observed by the Radar/RIS system. It exists to provide repeatable robot movement for sensing; sophisticated Husky autonomy is irrelevant.
-- **Jackal = Controlled Robot.** The Jackal operates in the controlled corridor. It remains manually teleoperated through `cmd_vel` and is the robot subject to the Radar/RIS-derived safety-control logic.
+- **Husky A200 = Dummy Robot.** The Dummy Robot operates in the conflicting / hidden corridor as the moving physical obstacle observed by the Radar/RIS system.
+- **Husky A200 = Controlled Robot.** A separate Controlled Robot instance operates in the controlled corridor. It remains manually teleoperated through `cmd_vel` and is the robot subject to the Radar/RIS-derived safety-control logic.
 
-This supersedes the earlier interpretation that Jackal simply replaced Husky as the experiment robot. Jackal remains the simpler controlled platform for the sensing-to-action demonstration, while Husky has gained a separate, non-control role as the moving Dummy Robot.
+This supersedes the earlier Jackal binding recorded later in this historical decision. The 2026-10-04 correction is recorded in `robot-runtime-0003`; the selection rationale below remains dated history, not current deployment authority.
 
 ## Two-corridor model
 

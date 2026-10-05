@@ -27,7 +27,7 @@ The system contains several independent pieces of state. This document prevents 
 | TX `CLR`/`OBS` latch | NRF TX role | until opposite command, role reset, or reboot |
 | RX last accepted state / episode | NRF RX role | current RX observation epoch |
 | Controlled Robot STOP state | future ROS-side arbiter | **not implemented** |
-| distance-to-corner | future gating input | **TBD** |
+| Radar corner-proximity trigger state | future Radar-side protocol | **Design only; range target/calibration and release condition open** |
 
 ## DSP temporal state
 
@@ -62,19 +62,19 @@ RX scans the selected PHY, validates the service-data contract, and emits only t
 
 ## Target Controlled Robot STOP gate
 
-**Design only:**
+**Design only:** the Radar station computes corner distance and emits an outbound event; robot-local arbitration still owns final motion control.
 
 ```text
-unsafe = received obstacle state is OBS
-near_corner = controlled_robot_distance_to_corner <= DISTANCE_THRESHOLD
+d = sqrt(r^2 - (h - z)^2)  # valid calibrated CONTROLLED_ROBOT reference-point track
+near_corner = d <= 2.0 m
 
-if unsafe AND near_corner:
+if Radar emits TRIGGER:
     STOP overrides normal cmd_vel
-else:
+else if Radar emits an explicit CLEAR:
     normal cmd_vel remains eligible
 ```
 
-This logic is not implemented. `DISTANCE_THRESHOLD` and its input source are TBD.
+The range geometry and `2.0 m` trigger are specified in the [corner-proximity protocol](../../../robotics/protocol-design/controlled-robot-corner-trigger.md). The 1 m/s assumption matches the current Husky A200 documented maximum. The threshold leaves approximately 1.505 m from a centered robot reference point to the corner-facing edge, but this is not a validated stop margin: trigger latency, braking deceleration, range uncertainty, reference-point calibration, and release hysteresis remain open.
 
 The intended motion authorities are only normal teleoperation / `cmd_vel` and higher-priority STOP. Distance is context used by the STOP rule, not a separate command authority.
 

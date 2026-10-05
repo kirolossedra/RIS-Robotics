@@ -88,10 +88,10 @@ classDiagram
         +acceptSafetyState()
         +applyStopPrecedence()
     }
-    class DistanceSource_TBD {
-        +distanceToCorner
-        +validity
-        +age
+    class RadarCornerTrigger_DESIGN_ONLY {
+        +projectSlantRange(r, h, z)
+        +assertAtTwoMeters()
+        +emitToControlledRobot()
     }
     class ControlledRobot {
         +executeVelocityCommand()
@@ -110,13 +110,14 @@ classDiagram
     BLETransport_IMPLEMENTED --> TransceiverRX_IMPLEMENTED : receive state
     TransceiverRX_IMPLEMENTED --> Controlled RobotSideBridge_DESIGN_ONLY : OBS / CLR serial
     Controlled RobotSideBridge_DESIGN_ONLY --> Controlled RobotROSArbiter_DESIGN_ONLY : SSH-delivered safety state
-    DistanceSource_TBD --> Controlled RobotROSArbiter_DESIGN_ONLY : gating context
+    RadarRISSystem --> RadarCornerTrigger_DESIGN_ONLY : CONTROLLED_ROBOT range track
+    RadarCornerTrigger_DESIGN_ONLY --> TransceiverTX_IMPLEMENTED : logical OBS / CLR trigger
     HumanOperator --> Controlled RobotROSArbiter_DESIGN_ONLY : normal cmd_vel
     Controlled RobotROSArbiter_DESIGN_ONLY --> ControlledRobot : final software command
     HumanOperator --> ControlledRobot : physical safety supervision
 ```
 
-This is a conceptual system UML view. `Controlled RobotSideBridge_DESIGN_ONLY`, `Controlled RobotROSArbiter_DESIGN_ONLY`, and `DistanceSource_TBD` are architecture elements rather than repository classes.
+This is a conceptual system UML view. `Controlled RobotSideBridge_DESIGN_ONLY`, `Controlled RobotROSArbiter_DESIGN_ONLY`, and `RadarCornerTrigger_DESIGN_ONLY` are architecture elements rather than repository classes.
 
 ## Implemented software structure
 
@@ -274,8 +275,10 @@ sequenceDiagram
     RX->>Bridge: OBS newline
     Note over Bridge,Arbiter: Design-only downstream path
     Bridge->>Arbiter: forward unsafe state over persistent SSH
-    Arbiter->>Arbiter: combine unsafe + distance gate
-    Arbiter->>Controlled Robot: force STOP when gate is active
+    Radar->>Radar: project range and assert TRIGGER at d <= 2.0 m
+    Radar->>Bridge: route TRIGGER to CONTROLLED_ROBOT
+    Bridge->>Arbiter: forward event over persistent SSH
+    Arbiter->>Controlled Robot: STOP overrides joystick while triggered
 ```
 
 The sequence is partially executable today. Steps through RX serial are implemented; steps after RX serial are target behavior.
@@ -460,10 +463,8 @@ flowchart TD
     TELEOP[Read normal teleoperation command]
     SAFETY[Read latest safety state]
     VALID{Safety state valid and live?}
-    DIST[Read distance-to-corner]
-    DVALID{Distance valid and live?}
-    UNSAFE{Obstacle state unsafe?}
-    NEAR{Distance <= threshold?}
+    DIST[Receive Radar corner trigger]
+    DVALID{Trigger valid and live?}
     STOP[Output zero / STOP command]
     PASS[Allow normal cmd_vel]
     POLICY[Apply explicit failure policy<br/>TBD]
@@ -473,11 +474,9 @@ flowchart TD
     VALID -->|No| POLICY --> END
     VALID -->|Yes| DIST --> DVALID
     DVALID -->|No| POLICY
-    DVALID -->|Yes| UNSAFE
-    UNSAFE -->|No| PASS --> END
-    UNSAFE -->|Yes| NEAR
-    NEAR -->|Yes| STOP --> END
-    NEAR -->|No| PASS
+    DVALID -->|Yes| TRIGGER{TRIGGER or explicit CLEAR?}
+    TRIGGER -->|TRIGGER| STOP --> END
+    TRIGGER -->|CLEAR| PASS --> END
 ```
 
 The `POLICY` branch is intentionally unresolved. A professional architecture should show the missing decision explicitly rather than conceal it behind an assumed default.

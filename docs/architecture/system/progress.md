@@ -60,7 +60,7 @@ flowchart LR
     RX --> HOST["RX host logger<br/>Implemented; JSONL run next"]
     HOST --> BRIDGE["SSH bridge<br/>Design only; implementation next"]
     BRIDGE --> ROS["ROS topic / STOP priority<br/>TBD / design only; local arbiter next"]
-    ROS --> DIST["Distance gate<br/>TBD; choose source and threshold next"]
+    ROS --> DIST["Radar corner trigger<br/>2.0 m proposed; calibrate + validate next"]
     DIST --> ROBOT["Controlled Robot motion<br/>Not end-to-end; local STOP test next"]
 
     classDef pass fill:#dbeafe,stroke:#1d4ed8,color:#172554,stroke-width:2px;
@@ -307,31 +307,54 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    OBS["Obstacle state: OBS / CLR<br/>Upstream contract exists"] --> UNSAFE{"Unsafe state?"}
-    SENSOR["Distance-to-corner source<br/>TBD"] --> VALID["Units / rate / validity / stale policy<br/>TBD"] --> NEAR{"Distance ≤ threshold?"}
-    THRESHOLD["DISTANCE_THRESHOLD<br/>TBD"] --> NEAR
-    UNSAFE --> GATE{"Unsafe AND near corner?"}
-    NEAR --> GATE
-    GATE -->|"Yes"| STOP["Assert local STOP<br/>Design only"]
-    GATE -->|"No"| NORMAL["Normal cmd_vel remains eligible<br/>Design only"]
-    SENSOR --> NEXT["Next: choose source, specify contract, calibrate threshold"]
+    SENSOR["Radar slant range r + height h<br/>Available input; track calibration open"] --> PROJECT["Project tracked CONTROLLED_ROBOT reference point<br/>d = sqrt(r² - (h-z)²)<br/>Design only"] --> NEAR{"d ≤ 2.0 m?"}
+    SPEED["Husky A200 assumption<br/>w = 1 m/s; footprint 0.990 × 0.670 m"] --> COMPARE["2 s center-point horizon<br/>1.505 m front-edge margin<br/>Analysis only"]
+    NEAR -->|"Yes"| TRIGGER["Send TRIGGER to CONTROLLED_ROBOT<br/>Design only"] --> STOP["Robot-local STOP overrides joystick<br/>Not implemented"]
+    NEAR -->|"No"| RELEASE["Explicit CLEAR threshold/hysteresis<br/>TBD"]
+    PROJECT --> COMPARE
+    COMPARE --> VALIDATE["Measure latency + braking distance<br/>Next: supervised stop test"]
 
     classDef done fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
     classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
     classDef next fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
-    class OBS done;
-    class SENSOR,VALID,NEAR,THRESHOLD,UNSAFE,GATE,STOP,NORMAL planned;
-    class NEXT next;
+    class SENSOR done;
+    class PROJECT,NEAR,COMPARE,TRIGGER,STOP,RELEASE planned;
+    class VALIDATE next;
     linkStyle default stroke:#2563eb,stroke-width:2px;
     linkStyle 0,1,2,3,4,5,6,7 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
 ```
+
+### Recursive breakdown — corner trigger evidence
+
+```mermaid
+flowchart LR
+    TRACK["CONTROLLED_ROBOT track<br/>Source association: TBD"] --> GEOMETRY["Height/corner calibration<br/>h, z, offset: TBD"]
+    GEOMETRY --> PROJECTION["Ground projection<br/>d = sqrt(r² - (h-z)²)<br/>Algorithm specified"]
+    PROJECTION --> VALIDITY["Freshness + uncertainty bound<br/>TBD"]
+    VALIDITY --> THRESHOLD{"d ≤ 2.0 m?"}
+    SPEED["Husky A200<br/>w = 1 m/s; 0.990 × 0.670 m"] --> MARGIN["2.0 s to center;<br/>1.505 m nose margin"]
+    MARGIN --> STOPTEST["Latency + braking measurement<br/>Next: supervised stop test"]
+    THRESHOLD --> EVENT["TRIGGER / CLEAR event<br/>AsyncAPI specified; release hysteresis TBD"]
+    EVENT --> LOCAL["CONTROLLED_ROBOT local arbiter<br/>Not implemented"]
+
+    classDef done fill:#dbeafe,stroke:#2563eb,color:#172554,stroke-width:2px;
+    classDef planned fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px,stroke-dasharray:4 4;
+    classDef next fill:#bfdbfe,stroke:#1e40af,color:#172554,stroke-width:2px;
+    class TRACK,SPEED done;
+    class GEOMETRY,PROJECTION,VALIDITY,THRESHOLD,MARGIN,EVENT,LOCAL planned;
+    class STOPTEST next;
+    linkStyle default stroke:#2563eb,stroke-width:2px;
+    linkStyle 0,1,2,3,4,5,6,7,8 stroke:#c026d3,stroke-width:4px,stroke-dasharray:6 4;
+```
+
+**Recursive status:** the projection math and manufacturer speed/footprint comparison are documented. Target association, reference-point and height calibration, range validity/uncertainty, release hysteresis, event transport, and local arbitration are not implemented. The next evidence-producing action is a supervised trigger-to-zero-motion measurement on the Husky A200.
 
 ## 13. Controlled Robot and safety
 
 ```mermaid
 flowchart LR
     TELEOP["Normal teleoperation"] --> ARBITER["Future local arbiter<br/>Design only"] --> MOTION["Controlled Robot motion<br/>Not connected to Radar/RIS path"]
-    SAFETY["Distance-gated safety STOP<br/>Design only; dependencies open"] --> ARBITER
+    SAFETY["Radar corner trigger -> safety STOP<br/>Design only; dependencies open"] --> ARBITER
     ESTOP["Physical emergency stop<br/>Independent physical authority"] --> MOTION
     SUPERVISOR["Human supervisor"] --> ESTOP
     ARBITER --> NEXT["Next: implement arbiter, then prove STOP assert/release locally"]
@@ -604,11 +627,11 @@ The diagrams give the recursive shape and a compact status label for every branc
 
 #### Distance gate
 
-**Progress:** The intended rule is `unsafe AND distance_to_corner <= DISTANCE_THRESHOLD -> STOP`. The distance source, units/update rate, validity/staleness behavior, calibration, and threshold are all TBD; the boolean gate itself is design only.
+**Progress:** The protocol now specifies Radar-side slant-range projection to a tracked `CONTROLLED_ROBOT` reference point and a proposed trigger at `d <= 2.0 m`, addressed to the Controlled Robot and independent of control-station state sharing. For the Husky A200 binding, 1 m/s is the documented maximum speed; 2.0 m is two seconds to the reference point and leaves about 1.505 m from a centered reference to the front edge. The rule remains **Design only**: these values do not prove sufficient braking margin.
 
 **Evidence:** [distance-gated STOP feature](../../features/control/distance-gated-stop.md), [integration plan Stage 6](integration-plan.md#stage-6--implement-distance-gating).
 
-**Next item:** select a source, define and calibrate its data contract and threshold, then implement the gate inside the robot-local arbitration path.
+**Next item:** calibrate radar height/corner offset and the target reference point, define stale-data and explicit-clear hysteresis, then measure trigger-to-zero-motion latency/braking under supervision. Accept or revise 2.0 m from that evidence.
 
 #### Controlled Robot and independent safety
 

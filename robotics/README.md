@@ -2,6 +2,13 @@
 
 This directory is the working area for robot-side connectivity, control, and troubleshooting in the RIS Robotics system.
 
+## Contents
+
+- [Documentation authority](#documentation-authority)
+- [Scope](#scope)
+- [Robotics areas](#robotics-areas)
+- [Current focus](#current-focus)
+
 ## Documentation authority
 
 This directory owns robot-specific connectivity, hardware troubleshooting, images, and implementation evidence. Stable robot architecture uses `DUMMY_ROBOT` and `CONTROLLED_ROBOT` under [`../docs/architecture/`](../docs/architecture/); product names remain correct here because these records concern physical hardware.
@@ -21,7 +28,10 @@ Use this directory to document and debug robot-side hardware and connectivity, i
 - controller pairing and teleoperation
 - connection failures, observations, commands, root causes, and confirmed fixes discovered during troubleshooting
 
-## Robot directories
+## Robotics areas
+
+- [Protocol design](protocol-design/README.md) — transport-independent message contracts and behavior algorithms, including Radar `OBS` overriding joystick control and the Radar-side Controlled Robot corner-proximity trigger.
+- [Controller and integration](controller/README.md) — controller configuration and the ROS/runtime binding of protocol behavior.
 
 ### Husky
 

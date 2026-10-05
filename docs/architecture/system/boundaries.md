@@ -24,7 +24,7 @@ DUMMY_ROBOT physical stimulus
     -> NRF wireless transport
     -> RX host boundary
     -> CONTROLLED_ROBOT bridge/arbitration [design only]
-    -> distance-gated STOP [design only/TBD]
+    -> Radar corner-proximity trigger [design only; proposed 2.0 m]
 ```
 
 ## Outside the system

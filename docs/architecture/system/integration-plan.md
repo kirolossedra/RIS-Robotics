@@ -79,12 +79,13 @@ trained detector
 
 ## Stage 6 — implement distance gating
 
-- Select the distance-to-corner source.
-- Define units, update rate, validity/staleness criteria, and calibration.
-- Select `DISTANCE_THRESHOLD` from experiment geometry rather than convenience.
-- Combine distance validity with obstacle state inside the local arbitration layer.
+- Bind a fresh Radar track to the `CONTROLLED_ROBOT` reference point and calibrate Radar height/corner offset.
+- Define range units, sample rate, range uncertainty, validity/staleness criteria, and release hysteresis.
+- Evaluate the proposed `d = sqrt(r^2 - (h-z)^2)` trigger at `d <= 2.0 m`, using the documented Husky A200 maximum speed assumption `w = 1 m/s`.
+- Measure trigger delivery/actuation latency and worst-case braking distance; compare their sum plus the Husky front extent and approved geometric margin against the 2.0 m threshold.
+- Keep final STOP arbitration local to the Controlled Robot; test trigger and explicit release behavior against joystick input.
 
-**Exit:** `unsafe AND near_corner -> STOP` is implemented and testable.
+**Exit:** Radar trigger and explicit release events reach the Controlled Robot reproducibly, local STOP arbitration is tested, and supervised distance/latency/braking evidence demonstrates whether 2.0 m is sufficient or establishes a revised threshold.
 
 ## Stage 7 — validate failures before the full demo
 
