@@ -19,18 +19,19 @@ This record remains active for this chat: append future related work to [`CODEX_
 ## Work completed
 
 - Fast-forwarded the detached worktree from `4b7b408` to `a176bf1` (`origin/main`).
-- Added the progress map and then moved it from the repository root to [`docs/architecture/system/progress.md`](../../docs/architecture/system/progress.md), alongside the system overview, current state, and integration plan.
+- Added the progress map and then moved it from the repository root to [`docs/architecture/system/progress.md`](../../architecture/system/progress.md), alongside the system overview, current state, and integration plan.
 - Updated the root README and system architecture index to point to the canonical progress page.
 - Expanded progress coverage across the experiment roles, Radar/RIS sensing, DSP, semantic-state generation, DSP-to-TX serial, Transceiver TX, BLE, Transceiver RX, RX host/logger, SSH bridge, ROS arbitration, distance gate, Controlled Robot safety, and system validation.
 - Added individual recursive Mermaid diagrams, status/evidence/next-item prose, cross-cutting views, and mappings back to the system architecture figures and UML views.
 - Added a color legend: amber blocks are not implemented; purple dashed paths are not tested end to end; blue blocks/solid blue paths represent implemented work and directly evidenced behavior.
 - Pushed each progress-page revision to `origin/main`.
+- Consolidated the documentation layout: removed root compatibility folders after confirming their canonical targets, and moved the dated session archive to `docs/sessions/` with active indexes and references updated.
 
 ## Current progress-page structure
 
 The progress page contains 21 Mermaid diagrams: a color legend, a whole-system flow, diagrams for each system part, a validation ladder, and cross-cutting data-flow, authority, deployment, state-ownership, and failure-containment views. Detailed prose remains alongside the diagrams and records current status, supporting evidence, and next items.
 
-The first system milestone remains installing and validating the trained detector and authoritative label mapping. Downstream next items are dependency ordered in the progress page and the canonical [system integration plan](../../docs/architecture/system/integration-plan.md).
+The first system milestone remains installing and validating the trained detector and authoritative label mapping. Downstream next items are dependency ordered in the progress page and the canonical [system integration plan](../../architecture/system/integration-plan.md).
 
 ## Evidence and limitations
 

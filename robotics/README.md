@@ -38,4 +38,4 @@ The immediate focus is establishing and verifying the robot connection path befo
 
 For the initial Husky phase, the robot is being prepared only as a simple moving or stationary physical obstacle for Radar obstacle-footprint data collection. Higher-level Husky control integration is not assumed by that experimental role.
 
-As troubleshooting progresses, add connection notes, diagnostic commands, logs, scripts, and confirmed procedures here rather than mixing robot-specific investigation into `firmware/` or `system/`.
+As troubleshooting progresses, add connection notes, diagnostic commands, logs, scripts, and confirmed procedures here rather than mixing robot-specific investigation into `firmware/` or `docs/architecture/`.

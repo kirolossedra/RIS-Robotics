@@ -70,7 +70,7 @@ What leaves DSP:
   it, transition-only `OBS`/`CLR` lines toward the NRF TX through
   `dsp/integration/`.
 
-The DSP-to-NRF serial boundary is now implemented in `integration/` and wired into `record_frames()`. It remains **blocked for experiment control** while `PLACEHOLDER_MODE = True`, and the live DSP-to-physical-TX boundary still needs hardware validation. Controlled Robot-side SSH/ROS actuation remains downstream work; see [`../docs/architecture/system/implementation-status.md`](../docs/architecture/system/implementation-status.md).
+The DSP-to-NRF serial boundary is now implemented in `integration/` and wired into `record_frames()`. It remains **blocked for experiment control** while `PLACEHOLDER_MODE = True`, and the live DSP-to-physical-TX boundary still needs hardware validation. Controlled Robot-side SSH/ROS actuation remains downstream work; see [`../docs/architecture/system/current-state.md`](../docs/architecture/system/current-state.md).
 
 ## Pipeline overview
 

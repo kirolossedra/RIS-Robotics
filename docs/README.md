@@ -15,7 +15,7 @@
 
 This directory is the canonical knowledge architecture for RIS-Robotics. It separates **what the system is**, **what it can do**, **why it was designed that way**, **what has been proven**, and **how it is operated**.
 
-Implementation folders remain implementation folders. Raw hardware evidence, troubleshooting media, executable validation utilities, and dated engineering logs stay close to their owning subsystem and are linked from here rather than duplicated.
+Implementation folders remain implementation folders. Raw hardware evidence, troubleshooting media, and executable validation utilities stay close to their owning subsystem and are linked from here rather than duplicated. Dated engineering sessions live under `docs/sessions/` because they are repository-wide historical records rather than current subsystem documentation.
 
 ## Documentation model
 
@@ -89,7 +89,7 @@ Raw evidence remains with its owner:
 - firmware hardware records and executable smoke tests: `firmware/validation/`;
 - DSP implementation-specific tests and algorithm evidence: `dsp/tests/` and `dsp/docs/`;
 - robot hardware troubleshooting and images: `robotics/`;
-- chronological debug/session artifacts: `sessions/`.
+- chronological engineering sessions and session-specific debug artifacts: `docs/sessions/`.
 
 `docs/validation/` synthesizes and indexes that evidence. It does not duplicate raw logs or test scripts.
 
@@ -104,8 +104,9 @@ Raw evidence remains with its owner:
 | [`experiments/`](experiments/) | Research protocols and campaigns |
 | [`operations/`](operations/) | Configuration and runbooks |
 | [`troubleshooting/`](troubleshooting/) | Fault/recovery knowledge index |
+| [`sessions/`](sessions/) | Dated engineering history and session-specific evidence |
 
-The root-level `sessions/` remains the historical engineering journal because it also contains non-document debug evidence and scripts.
+[`sessions/`](sessions/) contains dated engineering history and session-specific evidence. It is historical evidence, not current architecture authority.
 
 ## Maintenance rules
 

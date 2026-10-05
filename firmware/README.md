@@ -216,4 +216,4 @@ Evidence:
 - range/reliability characterization and longer-run behavior;
 - host execution of `tests/test_protocol.c` on a machine with a host C compiler.
 
-Firmware validation stops at the transport boundary. DSP-driven TX input, SSH forwarding, ROS arbitration, and Jackal motion control are system-integration work documented under [`../system/`](../system/).
+Firmware validation stops at the transport boundary. DSP-driven TX input, SSH forwarding, ROS arbitration, and Jackal motion control are system-integration work documented under [`../docs/architecture/`](../docs/architecture/).

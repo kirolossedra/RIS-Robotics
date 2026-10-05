@@ -1,6 +1,6 @@
 # Session 2026-09-28 — J-Link recovery, transceiver firmware, nRF52833 bring-up, two-board link
 
-Date: 2026-09-28. Location: this folder (`sessions/2026-09-28/`).
+Date: 2026-09-28. Location: this folder (`docs/sessions/2026-09-28/`).
 Full chronological record: [`MUSE_SESSION_LOG.md`](MUSE_SESSION_LOG.md).
 Raw Windows/J-Link artifacts: [`debug-evidence/`](debug-evidence/).
 Firmware validation evidence: `../firmware/validation/`.
@@ -49,7 +49,7 @@ verification (RX `printk` proven routed to physical `uart0`).
 (`ble-runtime-0001…0004`, `robot-runtime-0001/0002`, `robot-ros-0001`,
 `robot-hardware-0001`), pair-local chronological numbering, headings as
 `# Decision:` + `**ID:**` + `**Previous ID:**`, supersede banners on the
-old records, convention documented in `decision-logs/README.md`.
+old records, convention documented in `docs/decisions/README.md`.
 
 ## 5. Flash failures → APPROTECT → heap fault → wrong-chip root cause
 

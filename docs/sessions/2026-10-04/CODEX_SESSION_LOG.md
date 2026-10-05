@@ -82,3 +82,14 @@ The color legend is itself a Mermaid diagram. Path styling was applied to 21 dia
 ## Log filename correction
 
 The session log initially used the repository's historical `MUSE_SESSION_LOG.md` filename. After clarifying that this chat is handled by Codex, the file was renamed to `CODEX_SESSION_LOG.md`; session indexes and the general naming convention were updated accordingly.
+
+## Repository documentation layout audit
+
+The organization audit found that the repository already defines these ownership rules:
+
+- `docs/` is the canonical home for current synthesized knowledge, including `docs/decisions/` and `docs/architecture/`.
+- Root `decision-logs/` is a compatibility entry point. Its individual files preserve older links; new records belong under `docs/decisions/`.
+- Root `system/` is also a compatibility entry point. Its files redirect to the current architecture under `docs/architecture/`; new system knowledge belongs there.
+- Root `sessions/` is an intentional exception because dated engineering records include raw logs, debug evidence, and scripts as well as narrative. It is chronological evidence, not current authority.
+
+The rules distinguished authority correctly, but the layout remained confusing to navigate: the two compatibility folders looked active, while sessions was outside `docs/`. In the follow-up organization change, the compatibility pointer folders were removed after confirming that every pointer had a canonical target, and the complete session archive was moved to `docs/sessions/`. Active links and documentation indexes were updated; dated historical session entries were left intact.

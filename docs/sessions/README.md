@@ -4,7 +4,7 @@
 
 Sessions are chronological engineering history and may contain debug scripts, logs, temporary test conditions, and observations. They are evidence, not current architecture authority.
 
-Canonical current knowledge lives under [`../docs/`](../docs/). When a session changes architecture, feature maturity, a decision, or validation status, the corresponding canonical document must be updated separately.
+Canonical current knowledge lives in the other sections of `docs/`. When a session changes architecture, feature maturity, a decision, or validation status, the corresponding canonical document must be updated separately.
 
 ## Session layout
 
@@ -17,7 +17,7 @@ a full investigation summary, and that date's debug evidence.
   firmware, nRF52833 bring-up, two-board link. Start with its
   [`README.md`](2026-09-28/README.md).
 
-Convention: `sessions/<YYYY-MM-DD>/` holds `README.md` (investigation
+Convention: `docs/sessions/<YYYY-MM-DD>/` holds `README.md` (investigation
 summary), an agent-named `<AGENT>_SESSION_LOG.md` (chronological record), and
 `debug-evidence/` (raw artifacts). Existing MUSE-prefixed logs are historical;
 Codex sessions use `CODEX_SESSION_LOG.md`. Records are append-only history.

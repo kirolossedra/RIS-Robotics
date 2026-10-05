@@ -26,7 +26,7 @@ This directory synthesizes what has actually been demonstrated. Raw evidence rem
 - DSP validation notes: [`../../dsp/docs/validation-and-performance.md`](../../dsp/docs/validation-and-performance.md)
 - firmware hardware records: [`../../firmware/validation/`](../../firmware/validation/)
 - robot hardware troubleshooting evidence: [`../../robotics/`](../../robotics/)
-- dated debug/session evidence: [`../../sessions/`](../../sessions/)
+- dated debug/session evidence: [`../sessions/`](../sessions/)
 
 The canonical whole-system validation synthesis is [`system-validation.md`](system-validation.md).
 

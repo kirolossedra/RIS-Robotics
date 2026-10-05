@@ -76,16 +76,13 @@ Start with:
 - [`docs/operations/`](docs/operations/) — how to configure and operate the system.
 - [`docs/troubleshooting/`](docs/troubleshooting/) — fault/recovery knowledge and hardware-specific investigation indexes.
 
-The legacy [`system/`](system/) and [`decision-logs/`](decision-logs/) paths are retained only as compatibility entry points during the migration.
-
 ## Repository areas
 
 - [`dsp/`](dsp/) — radar acquisition, feature construction, CNN-LSTM adapter, rolling vote, GUI, obstacle-state adapter, serial discovery/output, and tests.
 - [`firmware/`](firmware/) — shared Transceiver firmware, host RX logger, build/flash instructions, and dated validation evidence.
 - [`robotics/`](robotics/) — robot-side connectivity, access, controller, and troubleshooting records.
-- [`docs/`](docs/) — canonical engineering knowledge: architecture, features, decisions, validation, experiments, operations, and troubleshooting.
-- [`sessions/`](sessions/) — dated engineering-session evidence and debug artifacts; historical logs are evidence, not current architecture authority.
-- [`system/`](system/) and [`decision-logs/`](decision-logs/) — compatibility paths retained while canonical documents live under `docs/`.
+- [`docs/`](docs/) — canonical engineering knowledge: architecture, features, decisions, validation, experiments, operations, troubleshooting, and sessions.
+- [`docs/sessions/`](docs/sessions/) — dated engineering-session evidence and debug artifacts; historical logs are evidence, not current architecture authority.
 
 ## System invariants
 

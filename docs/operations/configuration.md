@@ -106,4 +106,4 @@ If any downstream control item above is absent, the run is a subsystem/integrati
 
 ## Evidence retention
 
-Dated hardware evidence belongs under the owning subsystem's validation area or under `sessions/` when it is session-specific. System-level validation claims must link back to that evidence instead of copying unverifiable conclusions into multiple files.
+Dated hardware evidence belongs under the owning subsystem's validation area or under `docs/sessions/` when it is session-specific. System-level validation claims must link back to that evidence instead of copying unverifiable conclusions into multiple files.

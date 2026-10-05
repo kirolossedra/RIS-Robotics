@@ -1,6 +1,6 @@
 # Session 2026-10-02 — Husky 1 bring-up and Joystick 3 Bluetooth recurrence
 
-Date: 2026-10-02. Location: this folder (`sessions/2026-10-02/`).  
+Date: 2026-10-02. Location: this folder (`docs/sessions/2026-10-02/`).
 Full chronological record: [`MUSE_SESSION_LOG.md`](MUSE_SESSION_LOG.md).
 
 ## Summary
@@ -22,4 +22,4 @@ Only after reproducing that failure was the stored record removed. Joystick 3 wa
 
 The session also established the canonical Husky-side project root as `/home/robot/robohub/WSDL/kiro` and the BLE joystick evidence location as `logs/BLE/joystick/`. Bluetooth discovery/connect/remove captures are timestamped to prevent overwriting prior evidence.
 
-The authoritative troubleshooting history remains [TS-002](../../robotics/husky/TS-002-ps4-controller-bluetooth-pairing.md), which now includes this 2026-10-02 recurrence.
+The authoritative troubleshooting history remains [TS-002](../../../robotics/husky/TS-002-ps4-controller-bluetooth-pairing.md), which now includes this 2026-10-02 recurrence.

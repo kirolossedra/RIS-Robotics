@@ -485,7 +485,7 @@ The controller was referred to during this session as **Joystick 3**; it is the 
 The complete chronological session record is:
 
 ```text
-sessions/2026-10-02/MUSE_SESSION_LOG.md
+docs/sessions/2026-10-02/MUSE_SESSION_LOG.md
 ```
 
 ### Canonical robot-side evidence paths
