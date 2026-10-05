@@ -26,6 +26,7 @@ Use this directory to document and debug robot-side hardware and connectivity, i
 - publishing robot control commands such as `cmd_vel`
 - network/interface configuration and reachability
 - controller pairing and teleoperation
+- serial connectivity between the Transceiver firmware and host-side integration
 - connection failures, observations, commands, root causes, and confirmed fixes discovered during troubleshooting
 
 ## Robotics areas
@@ -36,6 +37,7 @@ Every immediate child directory is listed here; its README is the recursive inde
 |---|---|---|---|
 | [`protocol-design/`](protocol-design/) | Transport-independent robot-control contracts | Message contracts, pseudocode/behavior algorithms, AsyncAPI descriptions, Radar `OBS` override behavior, and corner-proximity trigger design | [`protocol-design/README.md`](protocol-design/README.md) |
 | [`controller/`](controller/) | Controller/runtime integration | Controller configuration and ROS/runtime binding of protocol behavior | [`controller/README.md`](controller/README.md) |
+| [`serial/`](serial/) | Transceiver-to-host serial integration | Host serial discovery, `OBS` / `CLR` transport evidence, firmware serial-path assessment, framing/liveness/reconnect exploration, and serial bring-up validation | [`serial/README.md`](serial/README.md) |
 | [`husky/`](husky/) | Clearpath Husky hardware evidence | Husky-specific troubleshooting, recovery records, and associated image evidence | [`husky/README.md`](husky/README.md) |
 
 ### Husky records
@@ -47,6 +49,8 @@ Every immediate child directory is listed here; its README is the recursive inde
 ## Current focus
 
 The immediate focus is establishing and verifying the robot connection path before integrating it with the wider RIS/Radar/BLE control flow.
+
+The ROS-side safety binding has been identified under [`controller/ros/`](controller/ros/). The current serial exploration under [`serial/`](serial/README.md) shows that the wireless Transceiver path can receive valid packets while the host serial boundary remains prototype-grade: RX state output currently uses Zephyr `printk()` and TX host input uses `uart_poll_in()` through the chosen console. The next firmware step is to replace that console-based control path with a dedicated serial transport, flash the corrected shared image onto both Transceivers, and validate complete host-visible `OBS` / `CLR` events before implementing the persistent serial-to-SSH-to-ROS bridge.
 
 For the initial Husky phase, the robot is being prepared only as a simple moving or stationary physical obstacle for Radar obstacle-footprint data collection. Higher-level Husky control integration is not assumed by that experimental role.
 
