@@ -3,6 +3,7 @@
 ## Contents
 
 - [What each document answers](#what-each-document-answers)
+- [Subdirectories](#subdirectories)
 - [Suggested reading paths](#suggested-reading-paths)
 
 
@@ -52,6 +53,14 @@ algorithms/
 | [`algorithms/README.md`](algorithms/README.md) | Algorithm inventory in pipeline order with implementation links. |
 | [`state-machines.md`](state-machines.md) | Every control-relevant state machine (vote filter, buffers, clutter memory, GUI latch, NRF latch, proposed adapter) and the raw-vs-stable-vs-control distinction. |
 | [`serial-integration-point.md`](serial-integration-point.md) | Exact insertion point, obstacle-state FSM design, transition semantics, NRF contract, blockers. Serial integration code now exists; hardware validation of the live DSP-to-physical-TX boundary remains pending. |
+
+## Subdirectories
+
+| Directory | Purpose | What belongs there | Recursive index |
+|---|---|---|---|
+| [`algorithms/`](algorithms/) | Algorithm-level DSP design | Capon beamforming, CNN-LSTM adapter, range-Doppler/MTI, and rolling-vote documentation | [`algorithms/README.md`](algorithms/README.md) |
+
+`algorithms/` is the only child directory under `dsp/docs/`; all other entries here are DSP documentation files.
 
 ## Suggested reading paths
 

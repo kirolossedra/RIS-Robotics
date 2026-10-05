@@ -3,11 +3,20 @@
 ## Contents
 
 - [Purpose](#purpose)
+- [Subdirectories](#subdirectories)
 - [Issues](#issues)
 
 ## Purpose
 
 This directory indexes Husky-specific troubleshooting records and the evidence stored alongside them.
+
+## Subdirectories
+
+| Directory | Purpose | What belongs there | Recursive index |
+|---|---|---|---|
+| [`images/`](images/) | Troubleshooting image evidence | Issue-scoped photographs used by Husky troubleshooting records | [`images/README.md`](images/README.md) |
+
+`images/` is the only child directory. Troubleshooting issue Markdown files remain directly in this folder.
 
 ## Issues
 

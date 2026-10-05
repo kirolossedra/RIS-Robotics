@@ -5,6 +5,14 @@ Full chronological record: [`MUSE_SESSION_LOG.md`](MUSE_SESSION_LOG.md).
 Raw Windows/J-Link artifacts: [`debug-evidence/`](debug-evidence/).
 Firmware validation evidence: `../firmware/validation/`.
 
+## Subdirectories
+
+| Directory | Purpose | What belongs there | Index |
+|---|---|---|---|
+| [`debug-evidence/`](debug-evidence/) | Raw diagnostic evidence from this session | J-Link enumeration, install/cleanup scripts and logs, inventory snapshots, probe-open checks, and the reset report | [`debug-evidence/README.md`](debug-evidence/README.md) |
+
+`debug-evidence/` is the only child directory in this session. Its README is the next recursive index; the remaining items in this directory are the session summary and chronological log.
+
 ## 1. Windows / J-Link BSOD investigation and stack reset
 
 Two Windows bugcheck `0xA` crashes during J-Link operations were preserved

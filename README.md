@@ -78,11 +78,14 @@ Start with:
 
 ## Repository areas
 
-- [`dsp/`](dsp/) — radar acquisition, feature construction, CNN-LSTM adapter, rolling vote, GUI, obstacle-state adapter, serial discovery/output, and tests.
-- [`firmware/`](firmware/) — shared Transceiver firmware, host RX logger, build/flash instructions, and dated validation evidence.
-- [`robotics/`](robotics/) — robot-side connectivity, access, controller, and troubleshooting records.
-- [`docs/`](docs/) — canonical engineering knowledge: architecture, features, decisions, validation, experiments, operations, troubleshooting, and sessions.
-- [`docs/sessions/`](docs/sessions/) — dated engineering-session evidence and debug artifacts; historical logs are evidence, not current architecture authority.
+Each entry below is one immediate child directory. Its linked README continues the directory map recursively instead of duplicating the full descendant tree here.
+
+| Directory | Responsibility | What belongs there | Recursive index |
+|---|---|---|---|
+| [`docs/`](docs/) | Canonical engineering knowledge | Architecture, features, decisions, validation, experiments, operations, troubleshooting, and session history | [`docs/README.md`](docs/README.md) |
+| [`dsp/`](dsp/) | Radar-side sensing and semantic-state generation | Acquisition, feature construction, inference adapter, rolling vote, serial integration, implementation docs, and tests | [`dsp/README.md`](dsp/README.md) |
+| [`firmware/`](firmware/) | Embedded wireless transport | Shared nRF52833 Transceiver firmware, host tools, and hardware validation evidence | [`firmware/README.md`](firmware/README.md) |
+| [`robotics/`](robotics/) | Robot-side integration and physical-hardware evidence | Protocol design, controller/runtime integration, and robot-specific troubleshooting | [`robotics/README.md`](robotics/README.md) |
 
 ## System invariants
 

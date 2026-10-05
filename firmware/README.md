@@ -34,19 +34,35 @@ If the physical boards are not nRF52833 DKs, select their actual Zephyr board ta
 
 ## Layout
 
+Every immediate child directory is listed below. A child that owns further subdirectories has its own README and continues the navigation recursively.
+
+| Directory | Responsibility | What belongs there | Recursive index |
+|---|---|---|---|
+| [`transceiver/`](transceiver/) | Shared embedded application | Zephyr build/configuration, runtime TX/RX + PHY behavior, protocol helpers, and host-side protocol tests | [`transceiver/README.md`](transceiver/README.md) |
+| [`tools/`](tools/) | Host-side utilities | RX serial logger and its Python dependency list | Leaf directory |
+| [`validation/`](validation/) | Firmware-specific hardware evidence | Dated bring-up/smoke-test records and reusable smoke-test utility | [`validation/README.md`](validation/README.md) |
+
 ```text
 firmware/
 ├── README.md
+├── state-machines.md
 ├── transceiver/
+│   ├── README.md        recursive implementation index
 │   ├── CMakeLists.txt
-│   ├── Kconfig           TX blink and RX stub intervals (no role selection)
-│   ├── prj.conf       shared hardware/Bluetooth configuration
-│   ├── src/main.c     application: runtime roles, BLE, buttons, LEDs
-│   ├── src/protocol.h pure OBS/CLR + role/PHY state-machine helpers (firmware + host test)
-│   └── tests/test_protocol.c host-side unit test for protocol.h
-└── tools/
-    ├── requirements.txt
-    └── rx_logger.py
+│   ├── Kconfig          TX blink and RX stub intervals (no role selection)
+│   ├── prj.conf         shared hardware/Bluetooth configuration
+│   ├── src/
+│   │   ├── main.c       application: runtime roles, BLE, buttons, LEDs
+│   │   └── protocol.h   pure OBS/CLR + role/PHY state-machine helpers
+│   └── tests/
+│       └── test_protocol.c host-side unit test for protocol.h
+├── tools/
+│   ├── requirements.txt
+│   └── rx_logger.py
+└── validation/
+    ├── README.md
+    ├── smoke_test.py
+    └── dated hardware-validation records
 ```
 
 ## Runtime roles

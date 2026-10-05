@@ -25,6 +25,14 @@ Each feature states:
 
 ## Feature map
 
+The feature tree is divided by capability domain. Each immediate child directory owns its local feature index.
+
+| Directory | Capability boundary | What belongs there | Recursive index |
+|---|---|---|---|
+| [`sensing/`](sensing/) | Radar-side interpretation | Features that turn sensor data into semantic detections | [`sensing/README.md`](sensing/README.md) |
+| [`transport/`](transport/) | State movement between subsystems | Serial discovery/output, wireless obstacle state, runtime Transceiver modes, and receive stubs | [`transport/README.md`](transport/README.md) |
+| [`control/`](control/) | Control-state generation and actuation semantics | Obstacle-state generation, Controlled Robot STOP, and distance-gated STOP behavior | [`control/README.md`](control/README.md) |
+
 ### Sensing
 
 - [`sensing/radar-semantic-detection.md`](sensing/radar-semantic-detection.md)

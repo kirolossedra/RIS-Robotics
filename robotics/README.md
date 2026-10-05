@@ -30,14 +30,15 @@ Use this directory to document and debug robot-side hardware and connectivity, i
 
 ## Robotics areas
 
-- [Protocol design](protocol-design/README.md) — transport-independent message contracts and behavior algorithms, including Radar `OBS` overriding joystick control and the Radar-side Controlled Robot corner-proximity trigger.
-- [Controller and integration](controller/README.md) — controller configuration and the ROS/runtime binding of protocol behavior.
+Every immediate child directory is listed here; its README is the recursive index for the next level.
 
-### Husky
+| Directory | Responsibility | What belongs there | Recursive index |
+|---|---|---|---|
+| [`protocol-design/`](protocol-design/) | Transport-independent robot-control contracts | Message contracts, pseudocode/behavior algorithms, AsyncAPI descriptions, Radar `OBS` override behavior, and corner-proximity trigger design | [`protocol-design/README.md`](protocol-design/README.md) |
+| [`controller/`](controller/) | Controller/runtime integration | Controller configuration and ROS/runtime binding of protocol behavior | [`controller/README.md`](controller/README.md) |
+| [`husky/`](husky/) | Clearpath Husky hardware evidence | Husky-specific troubleshooting, recovery records, and associated image evidence | [`husky/README.md`](husky/README.md) |
 
-`husky/` records the Clearpath Husky A200 troubleshooting work used to prepare the robot for the initial Radar obstacle-footprint data-collection phase.
-
-Current records:
+### Husky records
 
 - [TS-001 — Husky Onboard Computer Not Powering Up](husky/TS-001-onboard-computer-no-power-reversed-polarity.md) — initial Ethernet failure traced upstream to the onboard computer being unpowered; root cause was reversed polarity on the 12 V computer-power feed, resolved by correcting the polarity.
 - [TS-002 — Husky PS4 Controller Bluetooth Pairing](husky/TS-002-ps4-controller-bluetooth-pairing.md) — full PS4/DualShock 4 pairing investigation for **Husky 3 / Joystick 3** (`48:18:8D:52:67:63`). The valid-looking `Paired/Bonded/Trusted` state followed by `br-connection-create-socket` was observed on 2026-09-17 and reproduced on 2026-10-02. Both incidents recovered after resetting the unusable stored record and cleanly re-pairing. The 2026-10-02 session also established timestamped BLE joystick logging under the canonical Husky project tree.

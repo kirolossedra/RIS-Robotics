@@ -12,12 +12,16 @@ Architecture describes **what the system is**, how responsibilities are partitio
 
 ## Architecture dimensions
 
-- [`system/`](system/) — whole-system overview, boundaries, requirements, current state.
-- [`subsystems/`](subsystems/) — stable functional decomposition independent of current product bindings.
-- [`interactions/`](interactions/) — interfaces, dependencies, data flow, and control flow.
-- [`runtime/`](runtime/) — state machines, liveness, timing, stubs/simulation boundaries.
-- [`deployment/`](deployment/) — physical topology and current hardware bindings.
-- [`safety/`](safety/) — motion authority, failure containment, and unresolved safety policy.
+Each row is one immediate child directory. Follow its README for the next level of navigation where applicable.
+
+| Directory | Architectural responsibility | What belongs there | Index |
+|---|---|---|---|
+| [`system/`](system/) | Whole-system definition | Overview, boundaries, current state, requirements/traceability, integration plan, progress, and system views | [`system/README.md`](system/README.md) |
+| [`subsystems/`](subsystems/) | Stable functional decomposition | DSP, sensing, wireless transport, and robot-control responsibilities independent of current hardware bindings | [`subsystems/README.md`](subsystems/README.md) |
+| [`interactions/`](interactions/) | Cross-boundary behavior | Interfaces, dependency/change-impact graph, data flow, and control flow | [`interactions/README.md`](interactions/README.md) |
+| [`runtime/`](runtime/) | Dynamic system behavior | State machines, timing/liveness, and explicit stub/simulation boundaries | [`runtime/README.md`](runtime/README.md) |
+| [`deployment/`](deployment/) | Physical realization | Topology and current role-to-hardware bindings | [`deployment/README.md`](deployment/README.md) |
+| [`safety/`](safety/) | Control authority and containment | Motion authority, failure modes, and safety-policy boundaries | [`safety/README.md`](safety/README.md) |
 
 ## Rules
 

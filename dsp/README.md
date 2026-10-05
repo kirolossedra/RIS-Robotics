@@ -96,6 +96,14 @@ early stop or error). Details: [`docs/signal-processing-pipeline.md`](docs/signa
 
 ## Directory structure
 
+Every immediate child directory is documented here. Each linked README continues the navigation recursively for its own children.
+
+| Directory | Responsibility | What belongs there | Recursive index |
+|---|---|---|---|
+| [`docs/`](docs/) | DSP-specific engineering documentation | Signal-processing pipeline, contracts, runtime behavior, parameters, validation/performance notes, state machines, serial integration, and algorithm docs | [`docs/README.md`](docs/README.md) |
+| [`integration/`](integration/) | DSP-to-transport boundary | Obstacle-state conversion, automatic serial discovery, and transition-only serial output | [`integration/README.md`](integration/README.md) |
+| [`tests/`](tests/) | Hardware-free DSP/integration validation | Realtime detection, serial discovery, and serial-integration tests | [`tests/README.md`](tests/README.md) |
+
 ```text
 dsp/
 ├── README.md                      this index
@@ -104,10 +112,19 @@ dsp/
 ├── patient_status_gui.py          Tk detection display (legacy filename kept)
 ├── requirements.txt               keras + tensorflow only (see Dependencies)
 ├── __init__.py                    package marker
-├── tests/
-│   ├── README.md                  what the hardware-free tests cover
-│   └── test_realtime_detection.py 14 unittest checks (no radar needed)
-└── docs/                          engineering documentation (see below)
+├── docs/
+│   ├── README.md                  DSP documentation index
+│   └── algorithms/                algorithm-specific documentation
+├── integration/
+│   ├── README.md                  serial/control-boundary index
+│   ├── obstacle_state.py          semantic label -> OBS/CLR state
+│   ├── serial_discovery.py        automatic serial-device discovery
+│   └── serial_output.py           transition-only serial writer
+└── tests/
+    ├── README.md                  hardware-free test coverage
+    ├── test_realtime_detection.py realtime pipeline checks
+    ├── test_serial_discovery.py   discovery behavior checks
+    └── test_serial_integration.py serial adapter/output checks
 ```
 
 ## Runtime entry points

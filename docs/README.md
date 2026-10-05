@@ -95,23 +95,26 @@ Raw evidence remains with its owner:
 
 ## Directory map
 
-| Directory | Authority |
-|---|---|
-| [`architecture/`](architecture/) | Structure, boundaries, interactions, runtime state, deployment, safety |
-| [`features/`](features/) | Capabilities and feature maturity |
-| [`decisions/`](decisions/) | Engineering rationale and superseded choices |
-| [`validation/`](validation/) | Validation synthesis and evidence map |
-| [`experiments/`](experiments/) | Research protocols and campaigns |
-| [`operations/`](operations/) | Configuration and runbooks |
-| [`troubleshooting/`](troubleshooting/) | Fault/recovery knowledge index |
-| [`sessions/`](sessions/) | Dated engineering history and session-specific evidence |
+This table documents every immediate child directory. Each linked child README continues the map recursively for its own children.
 
-[`sessions/`](sessions/) contains dated engineering history and session-specific evidence. It is historical evidence, not current architecture authority.
+| Directory | Authority | What belongs there | Recursive index |
+|---|---|---|---|
+| [`architecture/`](architecture/) | Current system structure | Whole-system views, subsystem boundaries, interactions, runtime semantics, deployment bindings, and safety authority | [`architecture/README.md`](architecture/README.md) |
+| [`features/`](features/) | Observable capabilities | Sensing, transport, and control features with maturity and dependency links | [`features/README.md`](features/README.md) |
+| [`decisions/`](decisions/) | Engineering rationale | Accepted choices, historical alternatives, supersession, and decision chronology | [`decisions/README.md`](decisions/README.md) |
+| [`validation/`](validation/) | Validation synthesis | Claims that have evidence, evidence links, and explicit unvalidated boundaries | [`validation/README.md`](validation/README.md) |
+| [`experiments/`](experiments/) | Research campaigns | Experiment questions, protocols, planned campaigns, and research-specific records | [`experiments/README.md`](experiments/README.md) |
+| [`operations/`](operations/) | Configuration and operation | Runtime configuration, setup guidance, and operational procedures | [`operations/README.md`](operations/README.md) |
+| [`troubleshooting/`](troubleshooting/) | Fault/recovery index | Known failures, diagnoses, recoveries, and links to hardware-specific evidence | [`troubleshooting/README.md`](troubleshooting/README.md) |
+| [`sessions/`](sessions/) | Chronological engineering history | Dated session summaries, agent logs, and session-specific debug evidence | [`sessions/README.md`](sessions/README.md) |
+
+[`sessions/`](sessions/) contains historical evidence, not current architecture authority.
 
 ## Maintenance rules
 
 - Every Markdown directory has an index `README.md`.
 - Every Markdown document has a contents section.
+- Every README with child directories documents every immediate child and links onward so navigation remains recursive.
 - Do not put a capability description in architecture when it belongs in features.
 - Do not put rationale in architecture when it belongs in a decision.
 - Do not turn a session observation into a current claim until the owning canonical document is updated.
