@@ -21,6 +21,7 @@ Use this directory for:
 - verification of joystick-to-base command flow;
 - verification of software safety-stop behavior;
 - ROS-side observations needed before implementing the RIS-to-robot bridge;
+- repeatable demonstrations of already-proven ROS behavior;
 - future ROS launch/runtime integration notes when implementation is selected.
 
 Transport-independent `OBS` / `CLR` behavior remains in [`../../protocol-design/`](../../protocol-design/). Hardware-specific incidents remain under the owning robot directory. Canonical control-authority and failure-policy documentation remains under [`../../../docs/architecture/safety/`](../../../docs/architecture/safety/).
@@ -28,3 +29,4 @@ Transport-independent `OBS` / `CLR` behavior remains in [`../../protocol-design/
 ## Current documents
 
 - [`exploration.md`](exploration.md) — recorded 2026-10-05 exploration of the Clearpath Husky A200 ROS 2 Jazzy control path, existing `twist_mux` safety locks, live STOP/release experiment, and implications for RIS integration.
+- [`reusability.md`](reusability.md) — short repeatable procedure for reproducing the proven local ROS software safety-stop behavior without repeating the full exploration.
