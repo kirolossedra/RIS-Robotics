@@ -1,9 +1,10 @@
-# Decision: Controlled Robot Control Bridge (Serial → SSH → ROS)
+# Decision: Controlled Robot Control Bridge (Serial → Local ROS)
 
-**ID:** `robot-ros-0001`
-**Previous ID:** `DL-003`
-**Status:** Accepted for the initial implementation  
-**Date:** 2026-09-17  
+**ID:** `robot-ros-0001`  
+**Previous ID:** `DL-003`  
+**Status:** Accepted — current architecture  
+**Original date:** 2026-09-17  
+**Updated:** 2026-10-05  
 **Scope:** How a STOP state received from the BLE receiver reaches and overrides normal motion control on the Controlled Robot
 
 **Current hardware binding:** `CONTROLLED_ROBOT` = Clearpath Husky A200, updated 2026-10-04. This platform choice is a binding, not the architectural identity used by this control decision. The earlier Jackal selection remains in the dated hardware-selection history.
@@ -17,18 +18,125 @@
 - [Bring-up versus stable control logic](#bring-up-versus-stable-control-logic)
 - [Consequences](#consequences)
 - [Resulting design principle](#resulting-design-principle)
+- [Archived Decisions](#archived-decisions)
 
 ## Context
 
-The Controlled Robot-side NRF board receives the Radar/RIS-derived control state over BLE and exposes that state over USB serial. The question is how to move that serial event into the Controlled Robot's ROS control path without unnecessarily installing and maintaining a second ROS environment on the laptop carried by the robot.
+The Controlled Robot-side NRF board receives the Radar/RIS-derived control state over BLE and exposes that state over USB serial. The 2026-10-05 serial integration smoke test proved the complete route by connecting the NRF RX to an external laptop, forwarding the received serial state through SSH, and publishing the corresponding ROS safety-stop state on the Controlled Robot onboard computer. Both STOP and release were physically validated.
 
-The Controlled Robot itself already has an onboard computer running ROS and is reachable over Ethernet.
+That SSH route was therefore a **smoke-test transport**, not the intended stable architecture.
 
 ## Decision
 
-For the initial implementation, the laptop mounted on the Controlled Robot will act as a **serial-to-SSH bridge** rather than as a ROS host.
+The NRF RX USB serial connection will be plugged **directly into the Controlled Robot onboard computer**.
 
-The path is:
+A persistent local bridge process on the Controlled Robot computer will:
+
+1. keep the NRF RX serial interface open;
+2. parse exact `OBS` / `CLR` messages;
+3. keep a local ROS publisher alive in the Controlled Robot ROS environment; and
+4. publish the corresponding state directly into the local ROS safety-stop interface.
+
+The active path becomes:
+
+```text
+NRF RX
+  |
+  | USB serial
+  v
+Controlled Robot onboard computer
+  |
+  | persistent local serial / ROS bridge
+  v
+ROS safety-stop input
+  |
+  v
+ROS command arbiter / mux
+  |
+  v
+Controlled Robot base controller
+```
+
+The external laptop, Ethernet hop, SSH transport, remote shell, and remote ROS CLI invocation are removed from the active stopping path.
+
+The transport-independent semantics remain unchanged:
+
+```text
+OBS -> assert software safety STOP
+CLR -> explicitly release software safety STOP
+```
+
+Silence, malformed input, stale input, or serial disconnect must not automatically mean `CLR`.
+
+## Why the SSH session is persistent
+
+SSH is no longer part of the current runtime decision. This section is retained only because the original decision used SSH and the historical rationale remains relevant to the archived smoke-test architecture below.
+
+The smoke-test path attempted to keep SSH work out of the event path where possible because connection establishment, authentication, remote shell startup, and ROS CLI startup add dependencies and latency. The direct-USB architecture removes those concerns entirely from the normal stop path rather than optimizing them further.
+
+## Next validation
+
+The next test is the **direct USB path**:
+
+1. plug the NRF RX USB directly into the Controlled Robot onboard computer;
+2. identify the serial device carrying `OBS` / `CLR`;
+3. run a local bridge inside the robot's ROS environment;
+4. confirm `OBS` is parsed and reaches the local safety-stop interface;
+5. physically validate STOP;
+6. confirm `CLR` is parsed and reaches the local safety-stop interface;
+7. physically validate release; and
+8. measure end-to-end stopping latency separately from functional correctness.
+
+The already validated SSH bridge remains useful as smoke-test evidence and a diagnostic reference, but it is no longer the target runtime path.
+
+## ROS control semantics
+
+The Controlled Robot has only two logical motion-control authorities:
+
+1. normal teleoperation / `cmd_vel`;
+2. higher-priority safety STOP.
+
+Distance-to-corner is contextual state used to gate whether STOP is enforced. It is **not** a third control authority.
+
+The Radar-side range calculation and proposed 2.0 m `TRIGGER` remain separate from this transport decision. The Controlled Robot's local arbiter still enforces STOP precedence.
+
+The current Clearpath binding uses the existing local safety-stop path. The software safety stop remains below the physical emergency stop, so this architecture does not replace or weaken the physical emergency stop.
+
+## Bring-up versus stable control logic
+
+The serial → SSH → ROS route is now explicitly classified as **bring-up / smoke-test infrastructure**.
+
+The stable target is serial → local ROS on the Controlled Robot computer. The test path proved the semantics and interfaces before collapsing the architecture onto the robot itself.
+
+## Consequences
+
+The active architecture now:
+
+- removes the external laptop from the critical stopping path;
+- removes Ethernet and SSH from the critical stopping path;
+- keeps serial reception and ROS publication on the same onboard computer;
+- allows ROS discovery and publisher state to remain established in one persistent local process;
+- reduces the number of runtime dependencies between `OBS` reception and local stop arbitration; and
+- is expected to reduce software-side stopping latency, although the improvement must be measured rather than assumed.
+
+The direct-host path must still validate serial-device discovery, reconnect behavior, ROS environment startup, malformed/stale input handling, STOP/release behavior, and measured stopping latency.
+
+## Resulting design principle
+
+**The Controlled Robot owns its received safety input locally.**
+
+The NRF RX feeds the Controlled Robot computer directly, and a persistent local bridge translates serial state into the robot's local ROS safety-stop interface. SSH remains a bring-up and diagnostic mechanism, not part of the intended stopping path.
+
+## Archived Decisions
+
+### 2026-09-17 — Serial → SSH → ROS initial implementation
+
+**Status:** Superseded on 2026-10-05 after successful smoke testing.  
+**Reason for supersession:** The SSH route successfully proved the complete serial-to-ROS control path. The next architecture removes the test-only external laptop and SSH transport and validates direct USB into the Controlled Robot onboard computer.
+
+For the initial implementation, the laptop mounted on the Controlled Robot was to act as a **serial-to-SSH bridge** rather than as a ROS host.
+
+The path was:
 
 ```text
 NRF RX
@@ -51,22 +159,16 @@ ROS command arbiter / mux
 Controlled Robot base controller
 ```
 
-A small process on the laptop will:
+A small process on the laptop would:
 
 1. keep the NRF serial port open;
-2. establish an SSH session to the Controlled Robot computer before the experiment begins;
-3. keep that SSH session alive while the experiment runs; and
+2. establish an SSH session to the Controlled Robot computer before the experiment began;
+3. keep that SSH session alive while the experiment ran; and
 4. use incoming serial states to trigger the corresponding ROS-side action through that already-open session.
 
-The laptop therefore does **not** need ROS installed for this architecture. ROS commands execute on the Controlled Robot's onboard computer.
+The laptop therefore did **not** need ROS installed. ROS commands executed on the Controlled Robot's onboard computer.
 
-## Why the SSH session is persistent
-
-Opening a new SSH connection for each STOP event would place connection establishment, authentication, and session startup in the control path for every detection.
-
-Keeping one session open removes that repeated setup step. The serial receiver becomes the event source and the existing SSH channel becomes the transport into the Controlled Robot computer.
-
-The bridge can be viewed conceptually as:
+Opening a new SSH connection for each STOP event was recognized as undesirable because it would place connection establishment, authentication, and session startup in the event path. The original concept therefore preferred a persistent SSH channel:
 
 ```text
 open serial
@@ -78,64 +180,6 @@ while running:
         send corresponding command through existing SSH session
 ```
 
-## ROS control semantics
+During 2026-10-05 bring-up, the actual smoke-test implementation evolved through multiple serial-to-SSH bridge versions until both STOP and release worked end to end. That validated the communication route while confirming that SSH was serving as a test harness rather than a necessary architectural boundary.
 
-The Controlled Robot has only two logical motion-control authorities:
-
-1. normal teleoperation / `cmd_vel`;
-2. higher-priority safety STOP.
-
-Distance-to-corner is contextual state used to gate whether STOP is enforced. It is **not** a third control authority.
-
-The original 2026-09-17 target rule was:
-
-```text
-if conflicting_corridor_unsafe
-   AND jackal_distance_to_corner <= DISTANCE_THRESHOLD:
-    STOP overrides cmd_vel
-else:
-    normal cmd_vel remains allowed
-```
-
-The Radar-side range calculation and proposed 2.0 m `TRIGGER` are now specified in the [Controlled Robot corner-proximity protocol](../../../robotics/protocol-design/controlled-robot-corner-trigger.md). That protocol makes the trigger decision at the Radar station without control-station state sharing; the Controlled Robot's local arbiter still enforces STOP precedence. The 2.0 m threshold remains design-only pending measured trigger latency and braking distance.
-
-The STOP requirement is a control-priority rule, not a ROS topic-priority feature.
-
-ROS topics do not inherently have priority over one another. The implementation therefore needs a local command-arbitration mechanism on the Controlled Robot. Normal joystick velocity commands and the Radar/RIS-derived safety state are inputs to a mux, supervisor, or equivalent control component.
-
-```text
-Obstacle / safety state ----\
-                             > safety gating ----\
-Distance to corner ---------/                    \
-                                                  > ROS arbiter / mux --> base controller
-Joystick / cmd_vel ------------------------------/
-```
-
-When STOP is asserted, the arbiter must prevent normal joystick motion from commanding the robot forward. When the safety state permits motion again, normal joystick control can resume according to the final experiment logic.
-
-## Bring-up versus stable control logic
-
-For early testing, the persistent SSH session can be used to invoke a ROS publish/action on the Controlled Robot when a serial STOP event is received. This is useful for verifying the complete communication route.
-
-The precedence rule itself remains a ROS-side responsibility. The experiment must not rely on whichever velocity message happens to arrive last; the arbitration logic must explicitly make STOP authoritative.
-
-## Consequences
-
-This decision has several useful consequences:
-
-- ROS does not need to be installed on the Controlled Robot-side laptop.
-- The laptop remains a small protocol bridge: USB serial in, SSH/Ethernet out.
-- The ROS control logic remains close to the robot and its existing control stack.
-- BLE development, serial bridge development, and ROS arbitration can be tested separately.
-- The ROS portion can be developed independently on the Controlled Robot without requiring the sensing team to be present.
-
-It also introduces dependencies that must be handled explicitly:
-
-- the Ethernet link and SSH session become part of the control route;
-- SSH loss must be observable rather than silently ignored;
-- serial, BLE, and SSH failure behavior must be defined before the complete experiment is treated as ready; and
-- the software STOP path remains an experiment-level mechanism and does not replace the Controlled Robot's physical emergency stop or supervised safety procedures.
-
-## Resulting design principle
-
-The Controlled Robot-side laptop transports the received control event into the robot computer, but **the Controlled Robot's own ROS layer locally owns the final motion-arbitration decision**.
+The original decision's core principle remains valid: **the Controlled Robot's own ROS layer locally owns the final motion-arbitration decision**.
