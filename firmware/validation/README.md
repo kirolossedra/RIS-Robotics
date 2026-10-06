@@ -1,5 +1,12 @@
 # Firmware validation records
 
+## Contents
+
+- [Evidence ownership](#evidence-ownership)
+- [Records](#records)
+- [Reusable tooling](#reusable-tooling)
+- [Conventions](#conventions)
+
 Dated, board-level evidence for the RIS Transceiver firmware. Each record
 states the procedure, the exact observed result, and what remains open —
 so a commit carrying these files is self-describing.
@@ -24,6 +31,9 @@ A stub-mode PASS validates the stub and the boundary exercised by it. It does no
 - [`2026-10-02-rx-stub-mode-test.md`](2026-10-02-rx-stub-mode-test.md) —
   RX Natural/Forced CLR/Forced OBS button and LED test; serial output and
   over-air suppression remain open.
+- [`2026-10-05-event-driven-uart.md`](2026-10-05-event-driven-uart.md) —
+  async UART build and two-board flash verification; physical RX serial
+  transition capture remains pending.
 
 ## Reusable tooling
 

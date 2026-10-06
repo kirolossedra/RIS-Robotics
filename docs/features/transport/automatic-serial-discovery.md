@@ -8,7 +8,7 @@
 
 ## Capability
 
-Automatically select the intended NRF serial console when there is one unambiguous supported candidate.
+Automatically select the intended NRF protocol serial endpoint when there is one unambiguous supported candidate.
 
 ## Maturity
 

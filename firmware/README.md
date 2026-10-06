@@ -1,8 +1,21 @@
 # RIS Transceiver
 
+## Contents
+
+- [Documentation authority](#documentation-authority)
+- [Supported setup](#supported-setup)
+- [Layout](#layout)
+- [Runtime roles](#runtime-roles)
+- [Build and flash](#build-and-flash)
+- [RX Python logger](#rx-python-logger)
+- [`OBS` → `CLR` smoke test](#obs--clr-smoke-test-requires-both-boards)
+- [System boundary](#system-boundary)
+- [Validation status — 2026-10-02](#validation-status--2026-10-02)
+- [Validation update — 2026-10-05](#validation-update--2026-10-05)
+
 > **Hardware correction (2026-09-28):** the connected development board was previously documented as a Nordic nRF52840 DK, but FICR identification proves the physical MCU is an **nRF52833** (128 KB RAM / 512 KB flash). The canonical build target is therefore the Nordic nRF52833 DK. Images built for `nrf52840dk` overrun physical SRAM and BusFault before `main()`; see `ble-runtime-0004` and the session log. The nRF52833 DK provides the required `led0` through `led3` and `sw0` through `sw2` aliases and console.
 
-The **Transceiver** is one nRF Connect SDK/Zephyr application built as a **single firmware image**. The same binary performs either side of the `OBS`/`CLR` protocol: TX and RX are **runtime roles** selected on-device with a physical button (`ble-runtime-0004`). There are no separate TX/RX images and no build-time role selection.
+The **Transceiver** is one nRF Connect SDK/Zephyr application built as a **single firmware image**. The same binary performs either side of the `OBS`/`CLR` protocol: TX and RX are **runtime roles** selected on-device with a physical button (`ble-runtime-0004`). There are no separate TX/RX images and no build-time role selection. The DK's UART0 J-Link VCOM is the protocol transport at 115200 8N1; Zephyr console, console logging, and polling UART I/O are not used.
 
 
 ## Documentation authority
@@ -26,7 +39,7 @@ The current, verified build target is the Nordic nRF52833 DK:
 - MCU: nRF52833 (128 KB SRAM `0x20000000–0x2001FFFF`, 512 KB flash)
 - SDK: nRF Connect SDK v3.2.3
 - build/flash tool: `west`
-- console: the board's Zephyr console at 115200 baud, 8 data bits, no parity, 1 stop bit
+- protocol serial: UART0 through the DK's J-Link VCOM at 115200 baud, 8 data bits, no parity, 1 stop bit
 
 The firmware uses the selected board's devicetree LED and button aliases. No GPIO pin numbers are embedded in the application. On the nRF52833 DK, Zephyr aliases `led0` through `led3` map to physical LED1 through LED4. `sw0`, `sw1`, and `sw2` map to Buttons 1, 2, and 3; Button 4 is unused.
 
@@ -89,16 +102,16 @@ A freshly booted board starts as **TX + LE Coded S=8 + CLR**. Pressing Button 2 
 4. Advertising of `CLR` starts on the currently selected PHY.
 5. Only if advertising starts does TX become the active role: physical LED2 (`led1` alias) stays on for TX role indication. Physical LED1 (`led0` alias) stays off for `CLR` and blinks while `OBS` is advertised.
 
-A button press only requests a role; the requested role becomes active solely on successful transport start. If the new side fails to start, the firmware emits a rare diagnostic line (`ERR scan-start <err>` / `ERR adv-start <err>`) and attempts to restore the previous side. If the restore succeeds, the previous role simply remains active with its normal role and activity indications. If both sides are down, the role and activity LEDs are forced off while the `led2` PHY indicator is unaffected; pressing Button 2 again retries.
+A button press only requests a role; the requested role becomes active solely on successful transport start. If the new side fails to start, firmware attempts to restore the previous side. If the restore succeeds, the previous role simply remains active with its normal role and activity indications. If both sides are down, the role and activity LEDs are forced off while the `led2` PHY indicator is unaffected; pressing Button 2 again retries. The serial port carries protocol records only, so diagnostic text is not mixed with `OBS`/`CLR`.
 
 ### TX role
 
-TX holds physical LED2 (`led1` alias) on as the role indicator. Physical LED1 (`led0` alias) is off while the shared TX state is `CLR` and blinks while it is `OBS`. The blink lasts 80 ms at the configured interval (500 ms by default). UART input is interpreted as host control commands only in TX mode. It reads newline-delimited commands from the serial console:
+TX holds physical LED2 (`led1` alias) on as the role indicator. Physical LED1 (`led0` alias) is off while the shared TX state is `CLR` and blinks while it is `OBS`. The blink lasts 80 ms at the configured interval (500 ms by default). UART input is interpreted as host control commands only in TX mode. It reads newline-delimited commands from the protocol serial port:
 
 - `OBS` latches the state to obstacle;
 - `CLR` latches the state to clear.
 
-The current state is continuously present in non-connectable BLE extended advertisements. Exact serial lines `OBS` and `CLR` write the shared TX state; Button 3 toggles that same state for local testing. Whichever input writes last determines the state that TX advertises. Repeating the current state does not change it. Wrong case, padding, overlong lines, and other invalid input are ignored. Pressing Button 1 switches the BLE PHY mode (see below); the shared `OBS`/`CLR` state is preserved across the switch and re-advertised on the new PHY. In RX mode, Button 3 cycles the receive source through Natural, Forced CLR, and Forced OBS.
+The current state is continuously present in non-connectable BLE extended advertisements. Exact serial lines `OBS` and `CLR` write the shared TX state; Button 3 toggles that same state for local testing. The UART uses asynchronous event-driven receive and transmit. Only complete ASCII `OBS` or `CLR` lines ending in LF or CRLF are accepted; malformed and overlong lines are discarded through their delimiter. Whichever input writes last determines the state that TX advertises. Repeating the current state does not change it. Pressing Button 1 switches the BLE PHY mode (see below); the shared `OBS`/`CLR` state is preserved across the switch and re-advertised on the new PHY. In RX mode, Button 3 cycles the receive source through Natural, Forced CLR, and Forced OBS.
 
 ### RX role
 
@@ -126,7 +139,7 @@ Coded PHY uses the long-range S=8 configuration explicitly: `prj.conf` enables `
 
 ### PHY switching with Button 1
 
-Pressing the board's Button 1 (`sw0` alias, 200 ms debounce) toggles the PHY mode at runtime in either role. TX tears down and recreates its advertiser on the new PHY with the preserved latched state; RX restarts its scan on the new PHY and resets its deduplication epoch. If a restart fails, TX falls back to the previous PHY when possible and the firmware emits a rare diagnostic line (`ERR adv-restart`, `ERR scan-restart`) on the console; hosts must ignore console lines other than `OBS`/`CLR`.
+Pressing the board's Button 1 (`sw0` alias, 200 ms debounce) toggles the PHY mode at runtime in either role. TX tears down and recreates its advertiser on the new PHY with the preserved latched state; RX restarts its scan on the new PHY and resets its deduplication epoch. If a restart fails, TX falls back to the previous PHY when possible. The protocol serial port carries only `OBS`/`CLR` records.
 
 ### Role switching with Button 2
 
@@ -233,3 +246,9 @@ Evidence:
 - host execution of `tests/test_protocol.c` on a machine with a host C compiler.
 
 Firmware validation stops at the transport boundary. DSP-driven TX input, SSH forwarding, ROS arbitration, and Jackal motion control are system-integration work documented under [`../docs/architecture/`](../docs/architecture/).
+
+## Validation update — 2026-10-05
+
+The event-driven UART implementation built successfully for `nrf52833dk/nrf52833` with NCS v3.2.3. The same verified image was programmed to both connected DKs using explicit probe IDs: `1050670813` and `1050611489`. The UART0 protocol VCOM mapping was confirmed as COM8 for probe `1050670813` and COM14 for probe `1050611489`. Host protocol tests passed (70 checks). The Zephyr console and logging backends are absent from the generated configuration; `CONFIG_UART_ASYNC_API=y`.
+
+The complete on-hardware RX serial transition check remains pending: one board must be switched from its boot TX role to RX with Button 2 before sending `OBS` and `CLR` from the other board and capturing the RX VCOM output. See the dated evidence record [`validation/2026-10-05-event-driven-uart.md`](validation/2026-10-05-event-driven-uart.md) for the image hash and exact scope of evidence.

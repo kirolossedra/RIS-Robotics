@@ -31,6 +31,87 @@ enum tx_cmd_action {
 	TX_CMD_SET_CLR,
 };
 
+#define TX_COMMAND_LENGTH 3
+
+/* Bounded newline framing state for asynchronous UART receive callbacks. */
+struct tx_line_parser {
+	char line[TX_COMMAND_LENGTH];
+	uint8_t length;
+	bool discarding;
+	bool pending_cr;
+};
+
+static inline void tx_line_parser_reset(struct tx_line_parser *parser)
+{
+	if (parser != NULL) {
+		parser->length = 0;
+		parser->discarding = false;
+		parser->pending_cr = false;
+	}
+}
+
+/*
+ * Feed one byte from an asynchronous UART RX event. A command is returned
+ * only when its complete LF or CRLF delimiter arrives. Overlong and malformed
+ * lines are discarded through the next LF so a valid-looking tail cannot act.
+ */
+static inline enum tx_cmd_action tx_line_parser_feed(
+	struct tx_line_parser *parser, uint8_t byte)
+{
+	enum tx_cmd_action action = TX_CMD_IGNORE;
+
+	if (parser == NULL) {
+		return TX_CMD_IGNORE;
+	}
+
+	if (byte == '\n') {
+		if (!parser->discarding) {
+			if (parser->length == TX_COMMAND_LENGTH) {
+				if (parser->line[0] == 'O' && parser->line[1] == 'B' &&
+				    parser->line[2] == 'S') {
+					action = TX_CMD_SET_OBS;
+				} else if (parser->line[0] == 'C' && parser->line[1] == 'L' &&
+					   parser->line[2] == 'R') {
+					action = TX_CMD_SET_CLR;
+				}
+			}
+		}
+		tx_line_parser_reset(parser);
+		return action;
+	}
+
+	if (parser->discarding) {
+		return TX_CMD_IGNORE;
+	}
+
+	if (parser->pending_cr) {
+		/* CR is accepted only directly before LF. */
+		parser->discarding = true;
+		parser->pending_cr = false;
+		parser->length = 0;
+		return TX_CMD_IGNORE;
+	}
+
+	if (byte == '\r') {
+		if (parser->length == TX_COMMAND_LENGTH) {
+			parser->pending_cr = true;
+		} else {
+			parser->discarding = true;
+			parser->length = 0;
+		}
+		return TX_CMD_IGNORE;
+	}
+
+	if (parser->length >= TX_COMMAND_LENGTH) {
+		parser->discarding = true;
+		parser->length = 0;
+		return TX_CMD_IGNORE;
+	}
+
+	parser->line[parser->length++] = (char)byte;
+	return TX_CMD_IGNORE;
+}
+
 /*
  * Map an exact host command line to an action. Only the exact strings
  * "OBS" and "CLR" act; NULL, empty, wrong-case, padded, overlong, or

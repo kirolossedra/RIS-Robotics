@@ -48,6 +48,48 @@ static int test_tx_parse(void)
 	return 0;
 }
 
+static enum tx_cmd_action feed_line(struct tx_line_parser *parser,
+				   const char *line)
+{
+	enum tx_cmd_action action = TX_CMD_IGNORE;
+
+	while (*line != '\0') {
+		enum tx_cmd_action next =
+			tx_line_parser_feed(parser, (uint8_t)*line++);
+
+		if (next != TX_CMD_IGNORE) {
+			action = next;
+		}
+	}
+
+	return action;
+}
+
+static int test_tx_line_framing(void)
+{
+	struct tx_line_parser parser = { 0 };
+
+	/* No action until a complete LF or CRLF command arrives. */
+	CHECK(feed_line(&parser, "OBS") == TX_CMD_IGNORE);
+	CHECK(tx_line_parser_feed(&parser, '\n') == TX_CMD_SET_OBS);
+	CHECK(feed_line(&parser, "CLR\r\n") == TX_CMD_SET_CLR);
+
+	/* Partial, malformed, and overlong lines never become valid tails. */
+	CHECK(feed_line(&parser, "OB\n") == TX_CMD_IGNORE);
+	CHECK(feed_line(&parser, "OBSX\n") == TX_CMD_IGNORE);
+	CHECK(feed_line(&parser, "obs\n") == TX_CMD_IGNORE);
+	CHECK(feed_line(&parser, "garbage\n") == TX_CMD_IGNORE);
+	CHECK(feed_line(&parser, "OB\rS\n") == TX_CMD_IGNORE);
+	CHECK(feed_line(&parser,
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\n") == TX_CMD_IGNORE);
+
+	/* A clean command after every rejected line is parsed normally. */
+	CHECK(feed_line(&parser, "OBS\n") == TX_CMD_SET_OBS);
+	CHECK(feed_line(&parser, "CLR\n") == TX_CMD_SET_CLR);
+	CHECK(feed_line(&parser, "\n") == TX_CMD_IGNORE);
+	return 0;
+}
+
 static int test_rx_dedup(void)
 {
 	int8_t current = TRANSCEIVER_RX_UNKNOWN;
@@ -180,6 +222,9 @@ static int test_phy_role_independence(void)
 int main(void)
 {
 	if (test_tx_parse() != 0) {
+		return 1;
+	}
+	if (test_tx_line_framing() != 0) {
 		return 1;
 	}
 	if (test_rx_dedup() != 0) {

@@ -2,10 +2,10 @@
  * RIS Transceiver firmware — ONE image, runtime TX/RX roles (ble-runtime-0004).
  *
  * The same binary performs either side of the OBS/CLR protocol:
- * - TX: newline-delimited OBS/CLR on the board console -> latched state,
+ * - TX: newline-delimited OBS/CLR on the protocol UART -> latched state,
  *   continuously broadcast with non-connectable BLE extended advertising.
- * - RX: BLE state transitions -> newline-delimited OBS/CLR on the board
- *   console, with duplicate suppression (first OBS, then first CLR).
+ * - RX: BLE state transitions -> newline-delimited OBS/CLR on the protocol
+ *   UART, with duplicate suppression (first OBS, then first CLR).
  *
  * Runtime mode (see protocol.h):
  * - Button 1 (board alias sw0) toggles the BLE PHY: LE Coded S=8 <-> LE 1M.
@@ -45,7 +45,6 @@
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/atomic.h>
-#include <zephyr/sys/printk.h>
 #include <zephyr/sys/util.h>
 
 #include "protocol.h"
@@ -94,6 +93,23 @@
 #define BUTTON_DEBOUNCE_MS 200
 #define ACTIVITY_PULSE_MS 80
 #define RX_STUB_MODE_BLINK_MS 500
+#define UART_RX_BUFFER_SIZE 32
+#define UART_COMMAND_QUEUE_DEPTH 8
+#define UART_OUTPUT_QUEUE_DEPTH 8
+#define UART_RX_TIMEOUT_US 10000
+#define UART_SWITCH_TIMEOUT_MS 100
+
+struct uart_command {
+	uint8_t state;
+	int epoch;
+};
+
+K_MSGQ_DEFINE(uart_command_queue, sizeof(struct uart_command),
+	      UART_COMMAND_QUEUE_DEPTH, 4);
+K_MSGQ_DEFINE(uart_output_queue, sizeof(uint8_t),
+	      UART_OUTPUT_QUEUE_DEPTH, 1);
+K_SEM_DEFINE(uart_rx_disabled, 0, 1);
+K_SEM_DEFINE(uart_tx_complete, 0, 1);
 
 enum rx_stub_mode {
 	RX_STUB_NATURAL = 0,
@@ -119,7 +135,25 @@ static const struct gpio_dt_spec phy_button = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
 static const struct gpio_dt_spec role_button = GPIO_DT_SPEC_GET(SW1_NODE, gpios);
 static const struct gpio_dt_spec state_button = GPIO_DT_SPEC_GET(SW2_NODE, gpios);
 
-static const struct device *const console = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+/*
+ * UART0 is the nRF52833 DK's J-Link VCOM route. Console backends are disabled
+ * in prj.conf; this device is owned only by the OBS/CLR protocol transport.
+ */
+static const struct device *const protocol_uart = DEVICE_DT_GET(DT_NODELABEL(uart0));
+static struct tx_line_parser uart_parser;
+static uint8_t uart_rx_buffers[2][UART_RX_BUFFER_SIZE];
+static uint8_t uart_rx_next_buffer = 1;
+static uint8_t uart_tx_buffer[4];
+static atomic_t uart_command_epoch = ATOMIC_INIT(0);
+static atomic_t uart_commands_enabled = ATOMIC_INIT(0);
+static atomic_t uart_tx_enabled = ATOMIC_INIT(0);
+static atomic_t uart_tx_busy = ATOMIC_INIT(0);
+static atomic_t uart_rx_active = ATOMIC_INIT(0);
+static atomic_t uart_rx_restart_requested = ATOMIC_INIT(0);
+K_MUTEX_DEFINE(uart_tx_lock);
+
+static void uart_tx_work_handler(struct k_work *work);
+K_WORK_DELAYABLE_DEFINE(uart_tx_work, uart_tx_work_handler);
 
 /* Runtime mode. Boot default is TX + Coded S=8 (protocol.h). */
 static struct tr_mode mode = {
@@ -136,8 +170,6 @@ static bool transport_active;
 
 /* TX runtime state. */
 static uint8_t tx_state = STATE_CLEAR;
-static char uart_line[8];
-static size_t uart_len;
 
 /* RX runtime state. */
 static int8_t received_state = TRANSCEIVER_RX_UNKNOWN;
@@ -156,6 +188,8 @@ static atomic_t rx_activity_request = ATOMIC_INIT(0);
 static int64_t last_phy_button_ms;
 static int64_t last_role_button_ms;
 static int64_t last_state_button_ms;
+
+static void tx_state_write(uint8_t state);
 
 static int leds_init(void)
 {
@@ -362,6 +396,7 @@ static int advertise_state(uint8_t state)
 static void rx_process_state(uint8_t state, bool synthetic)
 {
 	enum rx_emit emit;
+	uint8_t serial_state;
 	k_spinlock_key_t key = k_spin_lock(&rx_state_lock);
 	enum rx_stub_mode stub_mode = (enum rx_stub_mode)atomic_get(&rx_stub_mode);
 
@@ -372,18 +407,20 @@ static void rx_process_state(uint8_t state, bool synthetic)
 	}
 
 	atomic_set(&rx_activity_request, 1);
+	int8_t previous_state = received_state;
 	emit = rx_dedup_update(&received_state, state);
+	if (emit == RX_EMIT_OBS || emit == RX_EMIT_CLR) {
+		serial_state = (emit == RX_EMIT_OBS) ? STATE_OBSTACLE : STATE_CLEAR;
+		if (k_msgq_put(&uart_output_queue, &serial_state, K_NO_WAIT) != 0) {
+			/* Preserve the transition so the next matching packet retries it. */
+			received_state = previous_state;
+			emit = RX_EMIT_NONE;
+		}
+	}
 	k_spin_unlock(&rx_state_lock, key);
 
-	switch (emit) {
-	case RX_EMIT_OBS:
-		printk("OBS\n");
-		break;
-	case RX_EMIT_CLR:
-		printk("CLR\n");
-		break;
-	default:
-		break;
+	if (emit == RX_EMIT_OBS || emit == RX_EMIT_CLR) {
+		k_work_schedule(&uart_tx_work, K_NO_WAIT);
 	}
 }
 
@@ -436,15 +473,231 @@ static void tx_transport_stop(void)
 	}
 }
 
-/* Drain stale bytes so pre-switch input can never become a TX command. */
-static void uart_flush(void)
+static void uart_tx_work_handler(struct k_work *work)
 {
-	uint8_t byte;
+	uint8_t state;
+	const char *line;
+	int err;
 
-	while (uart_poll_in(console, &byte) == 0) {
-		;
+	ARG_UNUSED(work);
+
+	if (k_mutex_lock(&uart_tx_lock, K_NO_WAIT) != 0) {
+		k_work_schedule(&uart_tx_work, K_MSEC(5));
+		return;
 	}
-	uart_len = 0;
+
+	if (!atomic_get(&uart_tx_enabled) ||
+	    !atomic_cas(&uart_tx_busy, 0, 1)) {
+		k_mutex_unlock(&uart_tx_lock);
+		return;
+	}
+
+	if (k_msgq_get(&uart_output_queue, &state, K_NO_WAIT) != 0) {
+		atomic_set(&uart_tx_busy, 0);
+		k_mutex_unlock(&uart_tx_lock);
+		return;
+	}
+
+	line = (state == STATE_OBSTACLE) ? "OBS\n" : "CLR\n";
+	memcpy(uart_tx_buffer, line, sizeof(uart_tx_buffer));
+	err = uart_tx(protocol_uart, uart_tx_buffer, sizeof(uart_tx_buffer),
+		      SYS_FOREVER_US);
+	if (err != 0) {
+		atomic_set(&uart_tx_busy, 0);
+		(void)k_msgq_put_front(&uart_output_queue, &state, K_NO_WAIT);
+		k_work_schedule(&uart_tx_work, K_MSEC(50));
+	}
+
+	k_mutex_unlock(&uart_tx_lock);
+}
+
+static void uart_rx_bytes(const uint8_t *bytes, size_t length)
+{
+	size_t i;
+
+	if (!atomic_get(&uart_commands_enabled)) {
+		tx_line_parser_reset(&uart_parser);
+		return;
+	}
+
+	for (i = 0; i < length; i++) {
+		enum tx_cmd_action action =
+			tx_line_parser_feed(&uart_parser, bytes[i]);
+		struct uart_command command;
+
+		if (action == TX_CMD_IGNORE) {
+			continue;
+		}
+
+		command.state = (action == TX_CMD_SET_OBS) ?
+			STATE_OBSTACLE : STATE_CLEAR;
+		command.epoch = atomic_get(&uart_command_epoch);
+		/* A full queue drops a complete command; it never changes state. */
+		(void)k_msgq_put(&uart_command_queue, &command, K_NO_WAIT);
+	}
+}
+
+static void protocol_uart_callback(const struct device *dev,
+				   struct uart_event *event, void *user_data)
+{
+	int err;
+
+	ARG_UNUSED(user_data);
+
+	switch (event->type) {
+	case UART_RX_RDY:
+		uart_rx_bytes(&event->data.rx.buf[event->data.rx.offset],
+			      event->data.rx.len);
+		break;
+	case UART_RX_BUF_REQUEST:
+		err = uart_rx_buf_rsp(dev, uart_rx_buffers[uart_rx_next_buffer],
+				      sizeof(uart_rx_buffers[0]));
+		if (err == 0) {
+			uart_rx_next_buffer ^= 1U;
+		} else {
+			atomic_set(&uart_rx_restart_requested, 1);
+		}
+		break;
+	case UART_RX_DISABLED:
+		atomic_set(&uart_rx_active, 0);
+		k_sem_give(&uart_rx_disabled);
+		break;
+	case UART_RX_STOPPED:
+		atomic_set(&uart_rx_restart_requested, 1);
+		break;
+	case UART_TX_DONE:
+	case UART_TX_ABORTED:
+		atomic_set(&uart_tx_busy, 0);
+		k_sem_give(&uart_tx_complete);
+		if (atomic_get(&uart_tx_enabled)) {
+			k_work_schedule(&uart_tx_work, K_NO_WAIT);
+		}
+		break;
+	case UART_RX_BUF_RELEASED:
+	default:
+		break;
+	}
+}
+
+static int protocol_uart_start_rx(void)
+{
+	int err;
+
+	uart_rx_next_buffer = 1;
+	err = uart_rx_enable(protocol_uart, uart_rx_buffers[0],
+			    sizeof(uart_rx_buffers[0]), UART_RX_TIMEOUT_US);
+	if (err == 0) {
+		atomic_set(&uart_rx_active, 1);
+		atomic_set(&uart_rx_restart_requested, 0);
+	}
+	return err;
+}
+
+/*
+ * Stop and restart asynchronous RX to discard DMA-buffered bytes at role
+ * boundaries. The command epoch invalidates anything queued before the flush.
+ */
+static int protocol_uart_flush_rx(bool accept_commands)
+{
+	int err;
+
+	atomic_set(&uart_commands_enabled, 0);
+	k_sem_reset(&uart_rx_disabled);
+	err = uart_rx_disable(protocol_uart);
+	if (err == 0) {
+		if (k_sem_take(&uart_rx_disabled,
+			       K_MSEC(UART_SWITCH_TIMEOUT_MS)) != 0) {
+			return -ETIMEDOUT;
+		}
+	} else if (err != -EFAULT) {
+		return err;
+	}
+
+	tx_line_parser_reset(&uart_parser);
+	k_msgq_purge(&uart_command_queue);
+	(void)atomic_inc(&uart_command_epoch);
+
+	err = protocol_uart_start_rx();
+	if (err == 0) {
+		atomic_set(&uart_commands_enabled, accept_commands ? 1 : 0);
+	}
+	return err;
+}
+
+static int protocol_uart_tx_quiesce(void)
+{
+	int err = 0;
+
+	if (k_mutex_lock(&uart_tx_lock, K_MSEC(UART_SWITCH_TIMEOUT_MS)) != 0) {
+		return -ETIMEDOUT;
+	}
+
+	atomic_set(&uart_tx_enabled, 0);
+	k_work_cancel_delayable(&uart_tx_work);
+	while (atomic_get(&uart_tx_busy)) {
+		if (k_sem_take(&uart_tx_complete,
+			       K_MSEC(UART_SWITCH_TIMEOUT_MS)) != 0) {
+			err = uart_tx_abort(protocol_uart);
+			if (err != 0 ||
+			    k_sem_take(&uart_tx_complete,
+				       K_MSEC(UART_SWITCH_TIMEOUT_MS)) != 0) {
+				err = -ETIMEDOUT;
+				break;
+			}
+			err = 0;
+		}
+	}
+	if (err == 0) {
+		k_msgq_purge(&uart_output_queue);
+	}
+	k_mutex_unlock(&uart_tx_lock);
+	return err;
+}
+
+/* Restore the serial direction owned by the still-active BLE role. */
+static void protocol_uart_resume_current_role(void)
+{
+	if (!atomic_get(&uart_rx_active)) {
+		(void)protocol_uart_start_rx();
+	}
+
+	if (!transport_active) {
+		return;
+	}
+	if (mode.role == TR_ROLE_TX) {
+		atomic_set(&uart_commands_enabled, 1);
+	} else {
+		atomic_set(&uart_tx_enabled, 1);
+		k_work_schedule(&uart_tx_work, K_NO_WAIT);
+	}
+}
+
+static void uart_commands_process(void)
+{
+	struct uart_command command;
+
+	while (k_msgq_get(&uart_command_queue, &command, K_NO_WAIT) == 0) {
+		if (command.epoch != atomic_get(&uart_command_epoch) ||
+		    !transport_active || mode.role != TR_ROLE_TX) {
+			continue;
+		}
+		tx_state_write(command.state);
+	}
+}
+
+static int protocol_uart_init(void)
+{
+	int err;
+
+	if (!device_is_ready(protocol_uart)) {
+		return -ENODEV;
+	}
+	tx_line_parser_reset(&uart_parser);
+	err = uart_callback_set(protocol_uart, protocol_uart_callback, NULL);
+	if (err != 0) {
+		return err;
+	}
+	return protocol_uart_start_rx();
 }
 
 static bool parse_ad(struct bt_data *data, void *user_data)
@@ -520,18 +773,27 @@ static int switch_to_rx(void)
 {
 	int err;
 
+	err = protocol_uart_tx_quiesce();
+	if (err != 0) {
+		protocol_uart_resume_current_role();
+		return err;
+	}
+	err = protocol_uart_flush_rx(false);
+	if (err != 0) {
+		protocol_uart_resume_current_role();
+		return err;
+	}
+
 	tx_transport_stop();
-	uart_len = 0;
 	rx_observation_reset(true);
 
 	err = rx_transport_start();
 	if (err) {
-		printk("ERR scan-start %d\n", err);
 		if (tx_transport_start(tx_state) == 0) {
 			transport_active = true;
+			protocol_uart_resume_current_role();
 			return err;
 		}
-		printk("ERR adv-restore\n");
 		/* Neither side runs: role LEDs go dark instead of showing
 		 * a normal TX pattern. A later button press retries. */
 		transport_active = false;
@@ -542,6 +804,8 @@ static int switch_to_rx(void)
 
 	mode.role = TR_ROLE_RX;
 	transport_active = true;
+	atomic_set(&uart_tx_enabled, 1);
+	k_work_schedule(&uart_tx_work, K_NO_WAIT);
 	(void)gpio_pin_set_dt(&led1, 0);
 	return 0;
 }
@@ -556,19 +820,28 @@ static int switch_to_tx(void)
 {
 	int err;
 
+	err = protocol_uart_tx_quiesce();
+	if (err != 0) {
+		protocol_uart_resume_current_role();
+		return err;
+	}
+	err = protocol_uart_flush_rx(false);
+	if (err != 0) {
+		protocol_uart_resume_current_role();
+		return err;
+	}
+
 	rx_transport_stop();
 	rx_observation_reset(true);
 	tx_state = STATE_CLEAR;
-	uart_flush();
 
 	err = tx_transport_start(tx_state);
 	if (err) {
-		printk("ERR adv-start %d\n", err);
 		if (rx_transport_start() == 0) {
 			transport_active = true;
+			protocol_uart_resume_current_role();
 			return err;
 		}
-		printk("ERR scan-restore\n");
 		/* Neither side runs: role LEDs go dark instead of showing
 		 * a normal RX pattern. A later button press retries. */
 		transport_active = false;
@@ -579,6 +852,7 @@ static int switch_to_tx(void)
 
 	mode.role = TR_ROLE_TX;
 	transport_active = true;
+	atomic_set(&uart_commands_enabled, 1);
 	return 0;
 }
 
@@ -593,17 +867,13 @@ static void switch_phy(void)
 		if (tx_transport_start(tx_state) != 0) {
 			/* Best effort: fall back to the previous PHY. */
 			mode.phy = prev;
-			if (tx_transport_start(tx_state) != 0) {
-				printk("ERR adv-restart\n");
-			}
+			(void)tx_transport_start(tx_state);
 		}
 	} else {
 		rx_transport_stop();
 		/* New PHY = new observation epoch; avoids stale state. */
 		rx_observation_reset(false);
-		if (rx_transport_start() != 0) {
-			printk("ERR scan-restart\n");
-		}
+		(void)rx_transport_start();
 	}
 	phy_indicator_update();
 }
@@ -614,43 +884,6 @@ static void role_switch_requested(void)
 		(void)switch_to_rx();
 	} else {
 		(void)switch_to_tx();
-	}
-}
-
-static void tx_poll_uart(void)
-{
-	uint8_t byte;
-	int err = uart_poll_in(console, &byte);
-
-	if (err != 0) {
-		return;
-	}
-
-	if (byte == '\r' || byte == '\n') {
-		if (uart_len > 0) {
-			uint8_t requested = tx_state;
-
-			uart_line[uart_len] = '\0';
-			switch (tx_parse_command(uart_line)) {
-			case TX_CMD_SET_OBS:
-				requested = STATE_OBSTACLE;
-				break;
-			case TX_CMD_SET_CLR:
-				requested = STATE_CLEAR;
-				break;
-			default:
-				/* Invalid input: ignore, keep state. */
-				break;
-			}
-
-			tx_state_write(requested);
-			uart_len = 0;
-		}
-	} else if (uart_len < sizeof(uart_line) - 1) {
-		uart_line[uart_len++] = (char)byte;
-	} else {
-		/* Overlong line: discard, never match a tail. */
-		uart_len = 0;
 	}
 }
 
@@ -678,10 +911,11 @@ static void transceiver_run(void)
 			switch_phy();
 		}
 
-		/* UART input is meaningful only in TX mode; RX never
-		 * consumes serial bytes as commands. */
-		if (mode.role == TR_ROLE_TX) {
-			tx_poll_uart();
+		/* UART callbacks frame commands; only complete lines reach this loop. */
+		uart_commands_process();
+		if (atomic_cas(&uart_rx_restart_requested, 1, 0)) {
+			(void)protocol_uart_flush_rx(mode.role == TR_ROLE_TX &&
+						     transport_active);
 		}
 		if (state_switch_poll() && transport_active) {
 			if (mode.role == TR_ROLE_TX) {
@@ -732,16 +966,16 @@ int main(void)
 {
 	int err;
 
-	if (!device_is_ready(console)) {
-		return -ENODEV;
-	}
-
 	err = leds_init();
 	if (err) {
 		return err;
 	}
 
 	err = buttons_init();
+	if (err) {
+		return err;
+	}
+	err = protocol_uart_init();
 	if (err) {
 		return err;
 	}
@@ -760,6 +994,7 @@ int main(void)
 		return err;
 	}
 	transport_active = true;
+	atomic_set(&uart_commands_enabled, 1);
 	role_leds_update();
 	transceiver_run();
 

@@ -47,11 +47,13 @@ The adapter initializes `CLEAR` to match the NRF TX boot state. It emits a seman
 
 ## DSP to NRF TX serial
 
-Implementation: `dsp/integration/serial_output.py` -> NRF TX console.
+Implementation: `dsp/integration/serial_output.py` -> NRF TX protocol UART (UART0 via DK J-Link VCOM).
 
 - Transport: UART/USB serial.
 - Default baud: **115200**, 8N1.
 - Valid command lines: exact ASCII `OBS` or `CLR`, terminated by newline/CRLF.
+- The transceiver owns UART0 for protocol traffic; Zephyr console output is disabled on this endpoint.
+- Firmware receives commands through the asynchronous UART event API and ignores incomplete, malformed, or overlong lines.
 - `OBS` means obstacle/unsafe state.
 - `CLR` means clear state.
 - Same-state repetitions are unnecessary; the DSP writer is transition-oriented and the TX firmware also latches state.
