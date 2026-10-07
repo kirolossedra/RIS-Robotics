@@ -88,7 +88,7 @@ Historical bridge stages are represented by commits to that same path. Numbered 
 
 This matters because the former v6 checkpoint documented an intended discovery change that was not actually present in the executable artifact. Under the commit-based model, an implementation claim must point to the commit that contains it. The v6 checkpoint is therefore intentionally represented by an empty commit, making the absence of an executable change explicit rather than hiding it behind a filename.
 
-The current consolidation that removed the numbered files and documented the runtime assumptions is commit `09e102368726b5de8aeff4b959547f223e3b5f63`.
+The canonical consolidation that removed the numbered files and documented the runtime assumptions is commit `09e102368726b5de8aeff4b959547f223e3b5f63`.
 
 ## End-to-end control path
 
