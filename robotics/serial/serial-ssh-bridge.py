@@ -11,18 +11,43 @@ import serial
 from serial.tools import list_ports
 
 
+# Deployment binding: changes if the CONTROLLED_ROBOT network address changes.
+# A different robot does not require a bridge-logic change if it is reachable at
+# the same address and exposes the same ROS safety-stop interface.
 SSH_HOST = "192.168.131.1"
+
+# Deployment/account binding: changes if the remote operating-system account
+# changes. It is independent of the serial protocol and OBS/CLR semantics.
 SSH_USER = "robot"
+
+# Credential is intentionally not hardcoded. The environment variable name is
+# stable unless the credential-delivery convention changes.
 SSH_PASSWORD = os.environ["RIS_ROBOT_SSH_PASSWORD"]
 
+# Serial transport contract: expected to survive robot/network changes while the
+# nRF Transceiver host interface remains 115200 8N1. Change only if that serial
+# contract changes.
 BAUD = 115200
 
+# Deployment/ROS namespace binding: changes if the CONTROLLED_ROBOT namespace or
+# safety-stop topic changes. A robot swap can preserve this value if it exposes
+# the same topic path.
 ROS_TOPIC = "/husky1/platform/safety_stop"
+
+# ROS interface contract: expected to survive IP, host, and namespace changes.
+# Change only if the safety-stop message contract itself stops using Bool.
 ROS_TYPE = "std_msgs/msg/Bool"
 
+# Remote process-management conventions: expected to survive normal robot and
+# network changes as long as the remote host provides writable /tmp storage.
+# Change if process supervision, permissions, or filesystem policy changes.
 REMOTE_PID_FILE = "/tmp/ris-safety-publisher.pid"
 REMOTE_LOG_FILE = "/tmp/ris-safety-publisher.log"
 
+# Remote ROS environment binding. The Jazzy setup path depends on the installed
+# ROS distribution/location. The discovery variables depend on the robot's ROS
+# network topology. They can survive a robot replacement only when that new
+# deployment intentionally uses the same ROS environment and discovery layout.
 ROS_ENV = (
     "source /opt/ros/jazzy/setup.bash && "
     "export ROS_SUPER_CLIENT=True ROS_DOMAIN_ID=0 "
@@ -79,6 +104,13 @@ def build_remote_command(state):
     else:
         raise ValueError(f"Unsupported state: {state}")
 
+    # Behavioral control policy, not merely deployment configuration:
+    # - 2 seconds bounds each remote publisher lifetime;
+    # - 10 Hz repeats the state during that window;
+    # - BEST_EFFORT is the QoS used by the physically exercised path.
+    # These values should survive ordinary host/IP/robot-binding changes. Change
+    # them only when the stop/release timing or ROS reliability design changes,
+    # and revalidate the resulting control behavior.
     publish_command = (
         "timeout 2 ros2 topic pub -r 10 "
         "--qos-reliability best_effort "
@@ -264,7 +296,7 @@ def bridge_worker():
 
 def main():
     print(
-        "RIS serial -> preemptive SSH -> ROS safety-stop bridge v8\n"
+        "RIS serial -> preemptive SSH -> ROS safety-stop bridge\n"
         f"Robot: {SSH_USER}@{SSH_HOST}\n"
         f"Topic: {ROS_TOPIC}\n"
         "OBS => true, 10 Hz for 2 s, BEST_EFFORT\n"
