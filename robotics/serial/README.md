@@ -5,6 +5,7 @@
 - [Purpose](#purpose)
 - [Scope](#scope)
 - [Current documents](#current-documents)
+- [Versioning rule](#versioning-rule)
 - [Ownership boundaries](#ownership-boundaries)
 
 ## Purpose
@@ -28,9 +29,15 @@ Use this directory for:
 ## Current documents
 
 - [`exploration.md`](exploration.md) — 2026-10-05 exploration of the nRF52833 RX/TX LED states, RX stub behavior, Linux J-Link ACM interfaces, observed serial output, natural over-the-air reception, and the conclusion that the original `printk()` / `uart_poll_in()` console path was prototype-grade and required a dedicated serial transport before robot integration.
-- [`explanation.md`](explanation.md) — evolution from isolated serial validation through bridge v1-v8, the failures and corrections that produced the working v8 bridge, the final preemptive latest-state-wins design, exact operating procedure, troubleshooting evidence, and the remaining stop-latency concern.
-- `serial-test-v2.py` — known-good isolated serial validation listener for exact newline-delimited `OBS` / `CLR` framing.
-- `serial-ssh-bridge-v1.py` through `serial-ssh-bridge-v8.py` — preserved implementation evolution of the serial-to-SSH bridge. `serial-ssh-bridge-v8.py` is the current physically exercised version.
+- [`explanation.md`](explanation.md) — commit-linked evolution from isolated serial validation through the working preemptive latest-state-wins bridge, exact operating procedure, hardcoded-value dependency classification, troubleshooting evidence, and the remaining stop-latency concern.
+- `serial-test.py` — known-good isolated serial validation listener for exact newline-delimited `OBS` / `CLR` framing.
+- `serial-ssh-bridge.py` — the single canonical serial-to-SSH bridge executable. Historical bridge states are preserved as commits on this same path and are indexed by commit hash in `explanation.md`.
+
+## Versioning rule
+
+Bridge implementation versions are represented by Git commits to `serial-ssh-bridge.py`, not by numbered filenames. There must be only one active bridge executable in this directory.
+
+Historical behavior remains recoverable through Git history and the commit-hash timeline in [`explanation.md`](explanation.md). A version label is descriptive only; the commit hash is the precise artifact identity.
 
 ## Ownership boundaries
 

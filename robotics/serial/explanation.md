@@ -4,11 +4,12 @@
 
 - [Purpose](#purpose)
 - [Current status](#current-status)
+- [Versioning model](#versioning-model)
 - [End-to-end control path](#end-to-end-control-path)
 - [Serial protocol behavior](#serial-protocol-behavior)
 - [Why the serial output is transition-oriented](#why-the-serial-output-is-transition-oriented)
 - [How the implementation evolved](#how-the-implementation-evolved)
-  - [Serial validation — `serial-test-v2.py`](#serial-validation--serial-test-v2py)
+  - [Serial validation — `serial-test.py`](#serial-validation--serial-testpy)
   - [Bridge v1 — initial Paramiko bridge](#bridge-v1--initial-paramiko-bridge)
   - [Bridge v2 — explicit ROS discovery preflight](#bridge-v2--explicit-ros-discovery-preflight)
   - [Bridge v3 — Clearpath setup-path experiment](#bridge-v3--clearpath-setup-path-experiment)
@@ -17,9 +18,10 @@
   - [Bridge v6 — intermediate discovery checkpoint](#bridge-v6--intermediate-discovery-checkpoint)
   - [Bridge v7 — reproduce the live Clearpath ROS environment](#bridge-v7--reproduce-the-live-clearpath-ros-environment)
   - [Bridge v8 — preemptive latest-state-wins scheduling](#bridge-v8--preemptive-latest-state-wins-scheduling)
-- [Current v8 design](#current-v8-design)
+- [Current canonical design](#current-canonical-design)
+- [Hardcoded deployment and behavior assumptions](#hardcoded-deployment-and-behavior-assumptions)
 - [ROS command semantics](#ros-command-semantics)
-- [How to operate v8](#how-to-operate-v8)
+- [How to operate the current bridge](#how-to-operate-the-current-bridge)
   - [Prerequisites](#prerequisites)
   - [One-time host setup](#one-time-host-setup)
   - [Run the bridge](#run-the-bridge)
@@ -33,7 +35,7 @@
 
 ## Purpose
 
-This document explains how the RIS Robotics serial-to-SSH bridge reached its current working implementation, why each version changed, and how to operate the validated v8 bridge.
+This document explains how the RIS Robotics serial-to-SSH bridge reached its current working implementation, why each historical stage changed, and how to operate the current canonical bridge.
 
 The bridge owns the integration boundary between the RX Transceiver's newline-delimited `OBS` / `CLR` serial output and the existing `CONTROLLED_ROBOT` ROS safety-stop interface.
 
@@ -48,7 +50,7 @@ RX Transceiver serial
         |
         | OBS / CLR
         v
-serial-ssh-bridge-v8.py
+serial-ssh-bridge.py
         |
         | specific SSH remote command
         v
@@ -69,14 +71,24 @@ Clearpath twist_mux
 The current working implementation is:
 
 ```text
-robotics/serial/serial-ssh-bridge-v8.py
+robotics/serial/serial-ssh-bridge.py
 ```
 
 The serial transport itself was validated before SSH integration using:
 
 ```text
-robotics/serial/serial-test-v2.py
+robotics/serial/serial-test.py
 ```
+
+## Versioning model
+
+There is one bridge source file: `robotics/serial/serial-ssh-bridge.py`.
+
+Historical bridge stages are represented by commits to that same path. Numbered source filenames are not used as version identity. The version labels below are descriptive names for the engineering sequence; the commit hash is the precise source identity.
+
+This matters because the former v6 checkpoint documented an intended discovery change that was not actually present in the executable artifact. Under the commit-based model, an implementation claim must point to the commit that contains it. The v6 checkpoint is therefore intentionally represented by an empty commit, making the absence of an executable change explicit rather than hiding it behind a filename.
+
+The current consolidation that removed the numbered files and documented the runtime assumptions is commit `09e102368726b5de8aeff4b959547f223e3b5f63`.
 
 ## End-to-end control path
 
@@ -86,7 +98,7 @@ The current integration path is:
 flowchart LR
     RX["nRF52833 RX Transceiver"]
     SERIAL["USB CDC serial\nOBS / CLR"]
-    HOST["Controlled Robot-side host\nserial-ssh-bridge-v8.py"]
+    HOST["Controlled Robot-side host\nserial-ssh-bridge.py"]
     SSH["Specific SSH remote command"]
     ROS["/husky1/platform/safety_stop\nstd_msgs/msg/Bool"]
     MUX["Clearpath twist_mux"]
@@ -156,7 +168,7 @@ A consequence remains: if the host bridge starts or reconnects after a transitio
 
 ## How the implementation evolved
 
-### Serial validation — `serial-test-v2.py`
+### Serial validation — `serial-test.py`
 
 Before SSH was introduced, the serial boundary was isolated and tested by itself.
 
@@ -173,6 +185,8 @@ Physical stub-mode testing proved complete `OBS` and `CLR` framing on `/dev/ttyA
 This established an important boundary: subsequent failures were no longer assumed to be serial failures unless the parsed `LINE` output itself was incorrect.
 
 ### Bridge v1 — initial Paramiko bridge
+
+Canonical-history commit: `8ca39312dbc00d147b93c055245e7b1ccb7cbffb`.
 
 The first complete bridge added SSH and invoked the already-proven ROS safety-stop publication remotely.
 
@@ -197,6 +211,8 @@ However, the robot did not react. The remote process existed, but it was not par
 
 ### Bridge v2 — explicit ROS discovery preflight
 
+Canonical-history commit: `f7f19d84c4d71fbb601ebb0ed17850a748d2dfe2`.
+
 v2 attempted to make the ROS environment explicit and added a preflight check for:
 
 ```text
@@ -213,6 +229,8 @@ This proved that successfully launching the ROS CLI was not enough; the non-inte
 
 ### Bridge v3 — Clearpath setup-path experiment
 
+Canonical-history commit: `33149f3ca4d11e9cfa63da06e3d6667d4d1d9d7a`.
+
 v3 attempted to reproduce the robot environment by sourcing a guessed Clearpath setup file.
 
 That path did not exist on this robot, so the version failed before bridge operation.
@@ -220,6 +238,8 @@ That path did not exist on this robot, so the version failed before bridge opera
 The important lesson was to stop guessing robot-specific setup paths and instead reproduce only values directly observed in the working shell.
 
 ### Bridge v4 — exact SSH remote commands
+
+Canonical-history commit: `8d98c715faf84c4ba603250337c1e2b8651363e1`.
 
 v4 simplified the transport model.
 
@@ -241,6 +261,8 @@ The SSH command reached the robot correctly; the non-interactive shell simply di
 
 ### Bridge v5 — source ROS Jazzy
 
+Canonical-history commit: `47b496ca0367a69dba9e982b548cf742d220079f`.
+
 v5 prefixed both remote commands with:
 
 ```bash
@@ -253,11 +275,17 @@ The command could now launch, but publication still did not affect the live ROS 
 
 ### Bridge v6 — intermediate discovery checkpoint
 
-v6 was an intermediate attempt to introduce the discovery fix, but the generated script did not actually contain the required environment change. Operationally it behaved like v5.
+Canonical-history commit: `81fb03b251245ee715d87a3b6d09fa9652afee85`.
 
-This version is preserved because it records the debugging history and the distinction between the intended modification and the artifact that was actually executed.
+This is intentionally an empty executable-change commit. The historical v6 attempt was supposed to introduce the discovery fix, but the generated/executed source remained byte-for-byte equivalent to the v5 source.
+
+Operationally it therefore behaved like v5. The empty commit records the checkpoint honestly: there was an engineering attempt and a claimed stage, but no corresponding code change in the bridge artifact.
+
+This is the failure mode that motivated commit-based artifact identity instead of numbered filenames.
 
 ### Bridge v7 — reproduce the live Clearpath ROS environment
+
+Canonical-history commit: `7b2278a72dd219e62c6414e5d4186a97cef4a083`.
 
 The working interactive SSH shell was inspected directly and exposed:
 
@@ -298,6 +326,8 @@ This was especially undesirable for a safety path because a newer state should b
 
 ### Bridge v8 — preemptive latest-state-wins scheduling
 
+Canonical-history commit: `a27e8c8db522f9f0645706f346035641e408ffda`.
+
 v8 changed the scheduler from sequential command completion to **latest-state-wins** behavior.
 
 Each new state:
@@ -335,9 +365,9 @@ stateDiagram-v2
     PublishingCLR --> PublishingCLR: newer CLR remains authoritative
 ```
 
-This v8 behavior was physically exercised successfully for both STOP and release.
+This behavior was physically exercised successfully for both STOP and release.
 
-## Current v8 design
+## Current canonical design
 
 The current bridge has four important responsibilities.
 
@@ -371,6 +401,33 @@ The newest serial state supersedes any still-running older publisher.
 
 This prevents a stale two-second publication from blocking the next state transition.
 
+## Hardcoded deployment and behavior assumptions
+
+The bridge intentionally keeps the currently validated values in the source. They are **documented assumptions**, not all treated as values that must be externalized. Each value has a different stability boundary.
+
+| Value | Classification | What can require a change | What normally does not require a change |
+|---|---|---|---|
+| `SSH_HOST = "192.168.131.1"` | Deployment/network binding | CONTROLLED_ROBOT IP addressing or network topology changes | Serial protocol changes; replacing hardware while preserving the same reachable address |
+| `SSH_USER = "robot"` | Remote-account binding | OS image/account policy or login user changes | Robot IP changes; ROS topic changes |
+| `RIS_ROBOT_SSH_PASSWORD` environment variable | Credential-delivery convention | Secret-delivery mechanism or environment-variable naming policy changes | Password value changes, because the secret itself is not committed |
+| `BAUD = 115200` with 8N1 | Serial transport contract | nRF host serial configuration changes | CONTROLLED_ROBOT IP, ROS namespace, SSH account, or robot hardware changes that leave the nRF serial contract intact |
+| `ROS_TOPIC = "/husky1/platform/safety_stop"` | Deployment/ROS namespace binding | Robot namespace or selected safety-stop topic changes | IP changes; SSH account changes; same interface exposed under the same namespace |
+| `ROS_TYPE = "std_msgs/msg/Bool"` | ROS interface contract | Safety-stop API/message semantics change | IP, username, topic namespace changes that preserve the Bool contract |
+| `/tmp/ris-safety-publisher.pid` | Remote process-management convention | Process supervision strategy, permissions, or filesystem policy changes | Normal network changes or robot replacement with compatible `/tmp` semantics |
+| `/tmp/ris-safety-publisher.log` | Remote logging convention | Logging/supervision strategy, permissions, or filesystem policy changes | Normal network changes or robot replacement with compatible `/tmp` semantics |
+| `/opt/ros/jazzy/setup.bash` | ROS installation binding | ROS distribution or installation location changes | IP/SSH changes; same Jazzy installation on a replacement host |
+| `ROS_SUPER_CLIENT=True` | ROS discovery-environment binding | Clearpath/ROS discovery architecture changes | Serial framing changes; network address changes that retain the same discovery model |
+| `ROS_DOMAIN_ID=0` | ROS domain binding | Deployment moves to another ROS domain | Robot hardware replacement within the same ROS domain |
+| `ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET` | ROS discovery-topology binding | Discovery scope/topology changes | Host replacement that keeps the same subnet discovery design |
+| `ROS_DISCOVERY_SERVER='127.0.0.1:11811;'` | ROS discovery-server binding | Discovery server address/port or deployment architecture changes | Remote IP changes when the discovery server remains local to that remote host |
+| publisher lifetime `2 s` | Behavioral/control policy | Stop/release timing design changes after measurement and validation | IP, username, namespace, or robot-binding changes by themselves |
+| publication rate `10 Hz` | Behavioral/control policy | Reliability/latency design changes after validation | Ordinary deployment addressing changes |
+| `BEST_EFFORT` QoS | Behavioral/interface policy | ROS reliability contract or measured delivery requirements change | Ordinary deployment addressing changes |
+
+The last three values are especially important: `2 s`, `10 Hz`, and `BEST_EFFORT` are not merely machine-specific defaults. They are part of the currently exercised control behavior. They should not be changed simply to make the code look configurable; changing them changes the behavior that has been physically exercised and therefore requires renewed validation.
+
+The source file contains the same classification next to the hardcoded values so that an engineer editing the bridge does not have to infer which constants are deployment bindings and which are behavioral contracts.
+
 ## ROS command semantics
 
 Both states use the same bounded repeated-publication mechanism.
@@ -393,7 +450,7 @@ The bridge intentionally does **not** use a one-shot publication for either stat
 
 The two-second repeated BEST_EFFORT form is retained because it is the procedure that restored motion reliably during the earlier ROS-side physical experiment.
 
-## How to operate v8
+## How to operate the current bridge
 
 ### Prerequisites
 
@@ -437,7 +494,7 @@ From the repository root:
 
 ```bash
 export RIS_ROBOT_SSH_PASSWORD='<robot-password>'
-python3 robotics/serial/serial-ssh-bridge-v8.py
+python3 robotics/serial/serial-ssh-bridge.py
 ```
 
 Expected startup includes discovery of the J-Link CDC interfaces followed by:
@@ -597,7 +654,7 @@ ROS_DISCOVERY_SERVER=127.0.0.1:11811;
 
 ### CLR waits behind OBS in older versions
 
-That was the v7 scheduling problem. v8 does not intentionally wait for the previous two-second publication to finish; the newest state preempts it.
+That was the v7 scheduling problem. The current canonical bridge does not intentionally wait for the previous two-second publication to finish; the newest state preempts it.
 
 ## Known limitations and next concern
 
@@ -627,14 +684,15 @@ The next design discussion should focus on reducing and measuring trigger-to-sto
 
 ## Version history
 
-| Artifact | Main change | Outcome |
-|---|---|---|
-| `serial-test-v2.py` | Isolated RX serial listener and exact newline framing | Serial `OBS` / `CLR` validated |
-| `serial-ssh-bridge-v1.py` | Initial serial + Paramiko SSH + ROS command | SSH command ran, robot did not react |
-| `serial-ssh-bridge-v2.py` | Explicit ROS discovery/preflight attempt | Safety topic not visible |
-| `serial-ssh-bridge-v3.py` | Tried robot-specific setup path | Assumed path did not exist |
-| `serial-ssh-bridge-v4.py` | Switched to direct specific SSH command execution | `ros2` missing from non-interactive PATH |
-| `serial-ssh-bridge-v5.py` | Source ROS 2 Jazzy | ROS CLI available; discovery still incomplete |
-| `serial-ssh-bridge-v6.py` | Intermediate discovery checkpoint | Intended discovery change was not present in executed artifact |
-| `serial-ssh-bridge-v7.py` | Added exact observed Clearpath ROS discovery variables | ROS state reached graph; synchronous scheduling remained |
-| `serial-ssh-bridge-v8.py` | Added preemptive latest-state-wins remote scheduling | **Working OBS and CLR bridge** |
+| Stage | Canonical commit | Main change | Outcome |
+|---|---|---|---|
+| Serial validation utility | `09e102368726b5de8aeff4b959547f223e3b5f63` | Canonicalized the isolated RX serial listener as `serial-test.py` | Existing serial `OBS` / `CLR` validation preserved without a numbered filename |
+| Bridge v1 | `8ca39312dbc00d147b93c055245e7b1ccb7cbffb` | Initial serial + Paramiko SSH + ROS command | SSH command ran, robot did not react |
+| Bridge v2 | `f7f19d84c4d71fbb601ebb0ed17850a748d2dfe2` | Explicit ROS discovery/preflight attempt | Safety topic not visible |
+| Bridge v3 | `33149f3ca4d11e9cfa63da06e3d6667d4d1d9d7a` | Tried robot-specific setup path | Assumed path did not exist |
+| Bridge v4 | `8d98c715faf84c4ba603250337c1e2b8651363e1` | Switched to direct specific SSH command execution | `ros2` missing from non-interactive PATH |
+| Bridge v5 | `47b496ca0367a69dba9e982b548cf742d220079f` | Source ROS 2 Jazzy | ROS CLI available; discovery still incomplete |
+| Bridge v6 | `81fb03b251245ee715d87a3b6d09fa9652afee85` | Historical checkpoint; no executable diff from v5 | Makes the missing intended change explicit |
+| Bridge v7 | `7b2278a72dd219e62c6414e5d4186a97cef4a083` | Added exact observed Clearpath ROS discovery variables | ROS state reached graph; synchronous scheduling remained |
+| Bridge v8 | `a27e8c8db522f9f0645706f346035641e408ffda` | Added preemptive latest-state-wins remote scheduling | **Working OBS and CLR bridge** |
+| Canonical consolidation | `09e102368726b5de8aeff4b959547f223e3b5f63` | Removed numbered bridge files, renamed the serial test, and documented hardcoded-value stability boundaries in source | One active bridge file with Git-based version identity |
