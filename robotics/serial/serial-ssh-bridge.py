@@ -22,12 +22,18 @@ ROS_TYPE = "std_msgs/msg/Bool"
 
 OBS_COMMAND = (
     "source /opt/ros/jazzy/setup.bash && "
+    "export ROS_SUPER_CLIENT=True ROS_DOMAIN_ID=0 "
+    "ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET "
+    "ROS_DISCOVERY_SERVER='127.0.0.1:11811;' && "
     "timeout 2 ros2 topic pub -r 10 --qos-reliability best_effort "
     f'{ROS_TOPIC} {ROS_TYPE} "{{data: true}}"'
 )
 
 CLR_COMMAND = (
     "source /opt/ros/jazzy/setup.bash && "
+    "export ROS_SUPER_CLIENT=True ROS_DOMAIN_ID=0 "
+    "ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET "
+    "ROS_DISCOVERY_SERVER='127.0.0.1:11811;' && "
     "timeout 2 ros2 topic pub -r 10 --qos-reliability best_effort "
     f'{ROS_TOPIC} {ROS_TYPE} "{{data: false}}"'
 )
@@ -240,12 +246,12 @@ def bridge_worker():
 
 def main():
     print(
-        "RIS serial -> exact SSH command -> ROS safety-stop bridge v5\n"
+        "RIS serial -> exact SSH command -> ROS safety-stop bridge v7\n"
         f"Robot: {SSH_USER}@{SSH_HOST}\n"
         f"Topic: {ROS_TOPIC}\n"
         "OBS => true, 10 Hz for 2 s, BEST_EFFORT\n"
         "CLR => false, 10 Hz for 2 s, BEST_EFFORT\n"
-        "SSH password: clearpath (built into script)\n",
+        "SSH password: supplied through RIS_ROBOT_SSH_PASSWORD\n",
         flush=True,
     )
 
