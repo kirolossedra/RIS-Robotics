@@ -21,11 +21,13 @@ ROS_TOPIC = "/husky1/platform/safety_stop"
 ROS_TYPE = "std_msgs/msg/Bool"
 
 OBS_COMMAND = (
+    "source /opt/ros/jazzy/setup.bash && "
     "timeout 2 ros2 topic pub -r 10 --qos-reliability best_effort "
     f'{ROS_TOPIC} {ROS_TYPE} "{{data: true}}"'
 )
 
 CLR_COMMAND = (
+    "source /opt/ros/jazzy/setup.bash && "
     "timeout 2 ros2 topic pub -r 10 --qos-reliability best_effort "
     f'{ROS_TOPIC} {ROS_TYPE} "{{data: false}}"'
 )
@@ -238,7 +240,7 @@ def bridge_worker():
 
 def main():
     print(
-        "RIS serial -> exact SSH command -> ROS safety-stop bridge v4\n"
+        "RIS serial -> exact SSH command -> ROS safety-stop bridge v5\n"
         f"Robot: {SSH_USER}@{SSH_HOST}\n"
         f"Topic: {ROS_TOPIC}\n"
         "OBS => true, 10 Hz for 2 s, BEST_EFFORT\n"
