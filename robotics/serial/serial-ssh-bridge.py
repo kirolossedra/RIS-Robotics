@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-import argparse
-import getpass
+import os
 import queue
 import threading
 import time
@@ -11,26 +10,21 @@ import serial
 from serial.tools import list_ports
 
 
-DEFAULT_HOST = "192.168.131.1"
-DEFAULT_USER = "robot"
-DEFAULT_BAUD = 115200
+SSH_HOST = "192.168.131.1"
+SSH_USER = "robot"
+SSH_PASSWORD = os.environ["RIS_ROBOT_SSH_PASSWORD"]
 
+BAUD = 115200
+
+ROS_SETUP = "/home/robot/clearpath/setup.bash"
 ROS_TOPIC = "/husky1/platform/safety_stop"
 ROS_TYPE = "std_msgs/msg/Bool"
 
-ROS_ENV = (
-    "source /opt/ros/jazzy/setup.bash && "
-    "export ROS_SUPER_CLIENT=True && "
-    "export ROS_DOMAIN_ID=0 && "
-    "export ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET && "
-    "export ROS_DISCOVERY_SERVER='127.0.0.1:11811;' && "
-)
-
-stateQueue = queue.Queue()
-shutdownEvent = threading.Event()
+state_queue = queue.Queue()
+shutdown_event = threading.Event()
 
 
-def isJlink(port):
+def is_jlink(port):
     text = " ".join(
         str(value or "")
         for value in (
@@ -49,8 +43,8 @@ def isJlink(port):
     )
 
 
-def discoverSerialPorts():
-    ports = [port for port in list_ports.comports() if isJlink(port)]
+def discover_serial_ports():
+    ports = [port for port in list_ports.comports() if is_jlink(port)]
 
     print("Detected SEGGER/J-Link serial interfaces:", flush=True)
 
@@ -67,11 +61,8 @@ def discoverSerialPorts():
     return ports
 
 
-class PersistentSsh:
-    def __init__(self, hostname, username, password):
-        self.hostname = hostname
-        self.username = username
-        self.password = password
+class PersistentSSH:
+    def __init__(self):
         self.client = None
         self.lock = threading.Lock()
 
@@ -83,14 +74,14 @@ class PersistentSsh:
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         print(
-            f"[SSH] Connecting to {self.username}@{self.hostname} ...",
+            f"[SSH] Connecting to {SSH_USER}@{SSH_HOST} ...",
             flush=True,
         )
 
         client.connect(
-            hostname=self.hostname,
-            username=self.username,
-            password=self.password,
+            hostname=SSH_HOST,
+            username=SSH_USER,
+            password=SSH_PASSWORD,
             look_for_keys=False,
             allow_agent=False,
             timeout=10,
@@ -105,7 +96,15 @@ class PersistentSsh:
         self.client = client
         print("[SSH] Connected", flush=True)
 
-    def ensureConnected(self):
+    def close(self):
+        if self.client is not None:
+            try:
+                self.client.close()
+            except Exception:
+                pass
+            self.client = None
+
+    def ensure_connected(self):
         if self.client is None:
             self.connect()
             return
@@ -115,131 +114,72 @@ class PersistentSsh:
             print("[SSH] Connection lost; reconnecting ...", flush=True)
             self.connect()
 
-    def close(self):
-        if self.client is not None:
-            try:
-                self.client.close()
-            except Exception:
-                pass
-            self.client = None
-
-    def runRemote(self, command, timeout=10):
-        self.ensureConnected()
-
-        remoteCommand = "bash -lc " + repr(command)
+    def run_command(self, command, timeout=10):
+        self.ensure_connected()
 
         stdin, stdout, stderr = self.client.exec_command(
-            remoteCommand,
+            command,
             timeout=timeout,
         )
 
-        stdoutText = stdout.read().decode(
+        exit_code = stdout.channel.recv_exit_status()
+
+        stdout_text = stdout.read().decode(
             "utf-8",
             errors="replace",
         ).strip()
 
-        stderrText = stderr.read().decode(
+        stderr_text = stderr.read().decode(
             "utf-8",
             errors="replace",
         ).strip()
 
-        exitCode = stdout.channel.recv_exit_status()
+        return exit_code, stdout_text, stderr_text
 
-        return exitCode, stdoutText, stderrText
+    def publish_safety_state(self, obstacle):
+        ros_value = "true" if obstacle else "false"
+        label = "OBS / STOP" if obstacle else "CLR / RELEASE"
 
-    def verifyRosPath(self):
-        command = (
-            ROS_ENV
-            + f"ros2 topic info -v {ROS_TOPIC}"
-        )
-
-        print(
-            "[SSH] Verifying ROS discovery and safety-stop topic ...",
-            flush=True,
-        )
-
-        exitCode, stdoutText, stderrText = self.runRemote(
-            command,
-            timeout=15,
-        )
-
-        if stdoutText:
-            print(f"[SSH][preflight]\n{stdoutText}", flush=True)
-
-        if stderrText:
-            print(f"[SSH][preflight stderr]\n{stderrText}", flush=True)
-
-        if exitCode != 0:
-            raise RuntimeError(
-                f"ROS preflight failed with exit code {exitCode}"
-            )
-
-        if ROS_TYPE not in stdoutText:
-            raise RuntimeError(
-                f"{ROS_TOPIC} is not visible as {ROS_TYPE}"
-            )
-
-        if (
-            "Subscription count: 0" in stdoutText
-            or "Subscribers count: 0" in stdoutText
-        ):
-            raise RuntimeError(
-                f"{ROS_TOPIC} is visible but has no subscriber"
-            )
-
-        print(
-            "[SSH] ROS safety-stop path is visible",
-            flush=True,
-        )
-
-    def publishSafetyState(self, isObstacle):
-        rosValue = "true" if isObstacle else "false"
-        label = "OBS / STOP" if isObstacle else "CLR / RELEASE"
-
-        rosCommand = (
-            ROS_ENV
-            + "timeout 2 ros2 topic pub -r 10 "
+        remote_command = (
+            f"source {ROS_SETUP} && "
+            "export ROS_SUPER_CLIENT=True && "
+            "timeout 2 ros2 topic pub -r 10 "
             "--qos-reliability best_effort "
-            f'{ROS_TOPIC} {ROS_TYPE} "{{data: {rosValue}}}"'
-        )
-
-        wrappedCommand = (
-            rosCommand
-            + "; code=$?; "
-            + 'if [ "$code" -eq 0 ] || [ "$code" -eq 124 ]; '
-            + 'then exit 0; else exit "$code"; fi'
+            f'{ROS_TOPIC} {ROS_TYPE} "{{data: {ros_value}}}"'
         )
 
         with self.lock:
             for attempt in (1, 2):
                 try:
                     print(
-                        f"[SSH] {label}: publishing at 10 Hz for 2 seconds "
-                        f"with BEST_EFFORT QoS",
+                        f"[SSH] {label}: executing specific remote ROS command",
+                        flush=True,
+                    )
+                    print(
+                        f"[SSH] {label}: 10 Hz for 2 seconds, BEST_EFFORT",
                         flush=True,
                     )
 
-                    exitCode, stdoutText, stderrText = self.runRemote(
-                        wrappedCommand,
+                    exit_code, stdout_text, stderr_text = self.run_command(
+                        remote_command,
                         timeout=10,
                     )
 
-                    if stdoutText:
+                    if stdout_text:
                         print(
-                            f"[SSH][stdout] {stdoutText}",
+                            f"[SSH][stdout]\n{stdout_text}",
                             flush=True,
                         )
 
-                    if stderrText:
+                    if stderr_text:
                         print(
-                            f"[SSH][stderr] {stderrText}",
+                            f"[SSH][stderr]\n{stderr_text}",
                             flush=True,
                         )
 
-                    if exitCode != 0:
+                    if exit_code not in (0, 124):
                         raise RuntimeError(
-                            "Remote ROS command exited with code "
-                            f"{exitCode}"
+                            f"Remote command exited with code {exit_code}"
                         )
 
                     print(
@@ -260,14 +200,13 @@ class PersistentSsh:
                         raise
 
                     self.connect()
-                    self.verifyRosPath()
 
 
-def serialReader(device, baud):
+def serial_reader(device):
     try:
         connection = serial.Serial(
             device,
-            baud,
+            BAUD,
             timeout=0.1,
             bytesize=serial.EIGHTBITS,
             parity=serial.PARITY_NONE,
@@ -284,11 +223,9 @@ def serialReader(device, baud):
     buffer = b""
 
     try:
-        while not shutdownEvent.is_set():
+        while not shutdown_event.is_set():
             try:
-                data = connection.read(
-                    connection.in_waiting or 1
-                )
+                data = connection.read(connection.in_waiting or 1)
             except Exception as error:
                 print(
                     f"[{device}] READ ERROR: {error}",
@@ -299,11 +236,7 @@ def serialReader(device, baud):
             if not data:
                 continue
 
-            print(
-                f"[{device}] RAW {data!r}",
-                flush=True,
-            )
-
+            print(f"[{device}] RAW {data!r}", flush=True)
             buffer += data
 
             while b"\n" in buffer:
@@ -312,29 +245,25 @@ def serialReader(device, baud):
                 if line.endswith(b"\r"):
                     line = line[:-1]
 
-                print(
-                    f"[{device}] LINE {line!r}",
-                    flush=True,
-                )
+                print(f"[{device}] LINE {line!r}", flush=True)
 
                 if line == b"OBS":
                     print(
                         f"[{device}] >>> VALID OBS <<<",
                         flush=True,
                     )
-                    stateQueue.put(("OBS", device))
+                    state_queue.put(("OBS", device))
 
                 elif line == b"CLR":
                     print(
                         f"[{device}] >>> VALID CLR <<<",
                         flush=True,
                     )
-                    stateQueue.put(("CLR", device))
+                    state_queue.put(("CLR", device))
 
                 else:
                     print(
-                        f"[{device}] Ignoring non-protocol line "
-                        f"{line!r}",
+                        f"[{device}] Ignoring non-protocol line {line!r}",
                         flush=True,
                     )
 
@@ -342,24 +271,20 @@ def serialReader(device, baud):
         connection.close()
 
 
-def bridgeWorker(ssh):
-    while not shutdownEvent.is_set():
+def bridge_worker(ssh):
+    while not shutdown_event.is_set():
         try:
-            state, device = stateQueue.get(
-                timeout=0.2
-            )
+            state, device = state_queue.get(timeout=0.2)
         except queue.Empty:
             continue
 
         try:
             print(
-                f"[BRIDGE] {device} -> {state} -> SSH",
+                f"[BRIDGE] {device} -> {state} -> SSH command",
                 flush=True,
             )
 
-            ssh.publishSafetyState(
-                state == "OBS"
-            )
+            ssh.publish_safety_state(state == "OBS")
 
         except Exception as error:
             print(
@@ -368,73 +293,42 @@ def bridgeWorker(ssh):
             )
 
         finally:
-            stateQueue.task_done()
-
-
-def parseArgs():
-    parser = argparse.ArgumentParser(
-        description=(
-            "RIS serial-to-SSH safety-stop bridge. "
-            "OBS publishes safety_stop=true and CLR publishes "
-            "safety_stop=false. Both use a 2-second, 10 Hz, "
-            "BEST_EFFORT ROS publication with the Clearpath "
-            "ROS discovery environment."
-        )
-    )
-
-    parser.add_argument(
-        "--host",
-        default=DEFAULT_HOST,
-    )
-
-    parser.add_argument(
-        "--user",
-        default=DEFAULT_USER,
-    )
-
-    parser.add_argument(
-        "--baud",
-        type=int,
-        default=DEFAULT_BAUD,
-    )
-
-    return parser.parse_args()
+            state_queue.task_done()
 
 
 def main():
-    args = parseArgs()
-
     print(
-        "RIS serial -> SSH -> ROS safety-stop bridge v2\n"
-        f"Robot: {args.user}@{args.host}\n"
+        "RIS serial -> specific SSH command -> ROS safety-stop bridge v3\n"
+        f"Robot: {SSH_USER}@{SSH_HOST}\n"
+        f"ROS setup: {ROS_SETUP}\n"
         f"Topic: {ROS_TOPIC}\n"
         "OBS => true, 10 Hz for 2 s, BEST_EFFORT\n"
         "CLR => false, 10 Hz for 2 s, BEST_EFFORT\n"
-        "Clearpath ROS discovery environment: explicit\n",
+        "SSH password: built into script\n",
         flush=True,
     )
 
-    password = getpass.getpass(
-        f"SSH password for {args.user}@{args.host}: "
-    )
-
-    ssh = PersistentSsh(
-        hostname=args.host,
-        username=args.user,
-        password=password,
-    )
+    ssh = PersistentSSH()
 
     try:
         ssh.connect()
 
-        # Do not accept serial safety commands unless the exact
-        # non-interactive SSH environment can see the live ROS path.
-        ssh.verifyRosPath()
+        exit_code, stdout_text, stderr_text = ssh.run_command(
+            f"test -f {ROS_SETUP} && echo CLEARPATH_SETUP_OK",
+            timeout=5,
+        )
 
-        ports = discoverSerialPorts()
+        if exit_code != 0 or "CLEARPATH_SETUP_OK" not in stdout_text:
+            raise RuntimeError(
+                f"Clearpath ROS setup file not found at {ROS_SETUP}"
+            )
+
+        print("[SSH] Clearpath ROS setup file found", flush=True)
+
+        ports = discover_serial_ports()
 
         worker = threading.Thread(
-            target=bridgeWorker,
+            target=bridge_worker,
             args=(ssh,),
             daemon=True,
         )
@@ -442,11 +336,8 @@ def main():
 
         for port in ports:
             thread = threading.Thread(
-                target=serialReader,
-                args=(
-                    port.device,
-                    args.baud,
-                ),
+                target=serial_reader,
+                args=(port.device,),
                 daemon=True,
             )
             thread.start()
@@ -461,13 +352,10 @@ def main():
             time.sleep(1)
 
     except KeyboardInterrupt:
-        print(
-            "\nStopping bridge ...",
-            flush=True,
-        )
+        print("\nStopping bridge ...", flush=True)
 
     finally:
-        shutdownEvent.set()
+        shutdown_event.set()
         ssh.close()
 
 
